@@ -4,7 +4,7 @@ RUN pecl install xdebug-2.7.2 \
     && docker-php-ext-enable xdebug
 
 RUN apt-get update \
- && apt-get install -y git wget tar
+ && apt-get install -y git wget tar zip unzip
 
 WORKDIR /usr/bin
 
