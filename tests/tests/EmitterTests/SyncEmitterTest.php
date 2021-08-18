@@ -11,7 +11,7 @@
 
     Unless required by applicable law or agreed to in writing,
     software distributed under the Apache License Version 2.0 is distributed on
-    an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either
+    an 'AS IS' BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either
     express or implied. See the Apache License Version 2.0 for the specific
     language governing permissions and limitations there under.
 
@@ -28,39 +28,50 @@ use PHPUnit\Framework\TestCase;
 /**
  * Tests the functionality of the Synchronous emitter
  */
-class SyncEmitterTest extends TestCase {
-
+class SyncEmitterTest extends TestCase
+{
     // Helper Functions & Values
 
-    private $uri = "localhost:4545";
+    private $uri = 'localhost:4545';
 
-    private function requestResultAssert($emitters, $code) {
-        foreach($emitters as $emitter) {
+    private function requestResultAssert($emitters, $code): void
+    {
+        foreach ($emitters as $emitter) {
             $results = $emitter->returnRequestResults();
+
             foreach ($results as $result) {
-                $this->assertEquals($code, $result["code"]);
+                $this->assertEquals($code, $result['code']);
             }
         }
     }
 
-    private function returnTracker($type, $debug, $uri) {
+    private function returnTracker($type, $uri): Tracker
+    {
         $subject = new Subject();
-        $e1 = $this->returnSyncEmitter($type, $uri, $debug);
-        return new Tracker($e1, $subject, NULL, NULL, true);
+        $e1 = $this->returnSyncEmitter($type, $uri, true);
+
+        return new Tracker($e1, $subject, null, null, true);
     }
 
-    private function returnSyncEmitter($type, $uri, $debug, $buffer = 10) {
-        return new SyncEmitter($uri, "http", $type, $buffer, $debug);
+    private function returnSyncEmitter($type, $uri, $debug, $buffer = 10): SyncEmitter
+    {
+        return new SyncEmitter($uri, 'http', $type, $buffer, $debug);
     }
 
     // Tests
 
-    public function testSyncPostBadUri() {
-        $tracker = $this->returnTracker("POST", true, "collector.acme.au");
+    /**
+     * @throws ErrorException
+     */
+    public function testSyncPostBadUri(): void
+    {
+        $tracker = $this->returnTracker('POST', 'collector.acme.au');
         $tracker->flushEmitters();
+
         for ($i = 0; $i < 1; $i++) {
-            $tracker->trackPageView("www.example.com", "example", "www.referrer.com");
+            $tracker->trackPageView('www.example.com', 'example', 'www.referrer.com');
         }
+
         $tracker->flushEmitters();
 
         //Asserts
@@ -68,12 +79,18 @@ class SyncEmitterTest extends TestCase {
         $tracker->turnOffDebug(true);
     }
 
-    public function testSyncGetBadUri() {
-        $tracker = $this->returnTracker("GET", true, "collector.acme.au");
+    /**
+     * @throws ErrorException
+     */
+    public function testSyncGetBadUri(): void
+    {
+        $tracker = $this->returnTracker('GET', 'collector.acme.au');
         $tracker->flushEmitters();
+
         for ($i = 0; $i < 1; $i++) {
-            $tracker->trackPageView("www.example.com", "example", "www.referrer.com");
+            $tracker->trackPageView('www.example.com', 'example', 'www.referrer.com');
         }
+
         $tracker->flushEmitters();
 
         //Asserts
@@ -81,12 +98,18 @@ class SyncEmitterTest extends TestCase {
         $tracker->turnOffDebug(true);
     }
 
-    public function testSyncPostDebug() {
-        $tracker = $this->returnTracker("POST", true, $this->uri);
+    /**
+     * @throws ErrorException
+     */
+    public function testSyncPostDebug(): void
+    {
+        $tracker = $this->returnTracker('POST', $this->uri);
         $tracker->flushEmitters();
+
         for ($i = 0; $i < 1; $i++) {
-            $tracker->trackPageView("www.example.com", "example", "www.referrer.com");
+            $tracker->trackPageView('www.example.com', 'example', 'www.referrer.com');
         }
+
         $tracker->flushEmitters();
 
         //Asserts
@@ -94,12 +117,18 @@ class SyncEmitterTest extends TestCase {
         $tracker->turnOffDebug(true);
     }
 
-    public function testSyncGetDebug() {
-        $tracker = $this->returnTracker("GET", true, $this->uri);
+    /**
+     * @throws ErrorException
+     */
+    public function testSyncGetDebug(): void
+    {
+        $tracker = $this->returnTracker('GET', $this->uri);
         $tracker->flushEmitters();
+
         for ($i = 0; $i < 1; $i++) {
-            $tracker->trackPageView("www.example.com", "example", "www.referrer.com");
+            $tracker->trackPageView('www.example.com', 'example', 'www.referrer.com');
         }
+
         $tracker->flushEmitters();
 
         //Asserts
@@ -107,31 +136,42 @@ class SyncEmitterTest extends TestCase {
         $tracker->turnOffDebug(true);
     }
 
-    public function testSyncBadType() {
-        $e1 = $this->returnSyncEmitter("POSTS", $this->uri, false);
+    public function testSyncBadType(): void
+    {
+        $e1 = $this->returnSyncEmitter('POSTS', $this->uri, false);
 
         // Asserts
-        $this->assertEquals("http://".$this->uri."/com.snowplowanalytics.snowplow/tp2", $e1->returnUrl());
+        $this->assertEquals("http://{$this->uri}/com.snowplowanalytics.snowplow/tp2", $e1->returnUrl());
     }
 
-    public function testReturnFunctions() {
-        $e1 = $this->returnSyncEmitter("GET", $this->uri, false);
-        $e2 = $this->returnSyncEmitter("POST", $this->uri, false);
+    public function testReturnFunctions(): void
+    {
+        $e1 = $this->returnSyncEmitter('GET', $this->uri, false);
+        $e2 = $this->returnSyncEmitter('POST', $this->uri, false);
 
         // Asserts
-        $this->assertEquals("http://".$this->uri."/i",
-            $e1->returnUrl());
-        $this->assertEquals("GET",
-            $e1->returnType());
-        $this->assertEquals("http://".$this->uri."/com.snowplowanalytics.snowplow/tp2",
-            $e2->returnUrl());
-        $this->assertEquals("POST",
-            $e2->returnType());
+        $this->assertEquals(
+            "http://{$this->uri}/i",
+            $e1->returnUrl()
+        );
+        $this->assertEquals(
+            'GET',
+            $e1->returnType()
+        );
+        $this->assertEquals(
+            "http://{$this->uri}/com.snowplowanalytics.snowplow/tp2",
+            $e2->returnUrl()
+        );
+        $this->assertEquals(
+            'POST',
+            $e2->returnType()
+        );
     }
 
-    public function testSyncInitNoBuffer() {
-        $e1 = $this->returnSyncEmitter("GET", $this->uri, false, NULL);
-        $e2 = $this->returnSyncEmitter("POST", $this->uri, false, NULL);
+    public function testSyncInitNoBuffer(): void
+    {
+        $e1 = $this->returnSyncEmitter('GET', $this->uri, false, null);
+        $e2 = $this->returnSyncEmitter('POST', $this->uri, false, null);
 
         //Asserts
         $this->assertEquals(50, $e1->returnBufferSize());

@@ -21,12 +21,14 @@
 */
 
 namespace Snowplow\Tracker;
+
 use ErrorException;
 
 /**
  * Contains all of the constants needed for the PHP Tracker.
  */
-class Constants {
+class Constants
+{
     /**
      * Settings for the PHP Tracker
      * - Version: the current version of the PHP Tracker
@@ -46,35 +48,35 @@ class Constants {
      * - SSL: the default for whether or not to use SSL Encryption
      * - Type: the default for what type of request the emitter will be making (POST or GET)
      */
-    const TRACKER_VERSION       = "php-0.4.0";
-    const DEFAULT_BASE_64       = true;
-    const DEBUG_LOG_FILES       = true;
-    const CONTEXT_SCHEMA        = "iglu:com.snowplowanalytics.snowplow/contexts/jsonschema/1-0-1";
-    const UNSTRUCT_EVENT_SCHEMA = "iglu:com.snowplowanalytics.snowplow/unstruct_event/jsonschema/1-0-0";
-    const SCREEN_VIEW_SCHEMA    = "iglu:com.snowplowanalytics.snowplow/screen_view/jsonschema/1-0-0";
-    const POST_REQ_SCHEMA       = "iglu:com.snowplowanalytics.snowplow/payload_data/jsonschema/1-0-4";
-    const DEFAULT_PLATFORM      = "srv";
-    const POST_PATH             = "/com.snowplowanalytics.snowplow/tp2";
-    const POST_CONTENT_TYPE     = "application/json; charset=utf-8";
-    const POST_ACCEPT           = "application/json";
-    const GET_PATH              = "/i";
-    const DEFAULT_PROTOCOL      = "http";
-    const DEFAULT_SSL           = false;
-    const DEFAULT_REQ_TYPE      = "POST";
+    public const TRACKER_VERSION = 'php-0.4.0';
+    public const DEFAULT_BASE_64 = true;
+    public const DEBUG_LOG_FILES = true;
+    public const CONTEXT_SCHEMA = 'iglu:com.snowplowanalytics.snowplow/contexts/jsonschema/1-0-1';
+    public const UNSTRUCT_EVENT_SCHEMA = 'iglu:com.snowplowanalytics.snowplow/unstruct_event/jsonschema/1-0-0';
+    public const SCREEN_VIEW_SCHEMA = 'iglu:com.snowplowanalytics.snowplow/screen_view/jsonschema/1-0-0';
+    public const POST_REQ_SCHEMA = 'iglu:com.snowplowanalytics.snowplow/payload_data/jsonschema/1-0-4';
+    public const DEFAULT_PLATFORM = 'srv';
+    public const POST_PATH = '/com.snowplowanalytics.snowplow/tp2';
+    public const POST_CONTENT_TYPE = 'application/json; charset=utf-8';
+    public const POST_ACCEPT = 'application/json';
+    public const GET_PATH = '/i';
+    public const DEFAULT_PROTOCOL = 'http';
+    public const DEFAULT_SSL = false;
+    public const DEFAULT_REQ_TYPE = 'POST';
 
     /**
      * Settings for the Synchronous Emitter
      * - Buffer: the amount of events that will occur before sending begins
      */
-    const SYNC_BUFFER = 50;
+    public const SYNC_BUFFER = 50;
 
     /**
      * Settings for the Socket Emitter
      * - Buffer: the amount of events that will occur before sending begins
      * - Timeout: the time allowed for sending to the socket before we attempt a reconnect
      */
-    const SOCKET_BUFFER  = 50;
-    const SOCKET_TIMEOUT = 30;
+    public const SOCKET_BUFFER = 50;
+    public const SOCKET_TIMEOUT = 30;
 
     /**
      * Settings for the Asynchronous Rolling Curl Emitter
@@ -83,11 +85,11 @@ class Constants {
      *   before we initiate sending
      * - Window: the amount of concurrent curl requests being made
      */
-    const CURL_BUFFER      = 50;
-    const CURL_AMOUNT_POST = 50;
-    const CURL_WINDOW_POST = 10;
-    const CURL_AMOUNT_GET  = 250;
-    const CURL_WINDOW_GET  = 30;
+    public const CURL_BUFFER = 50;
+    public const CURL_AMOUNT_POST = 50;
+    public const CURL_WINDOW_POST = 10;
+    public const CURL_AMOUNT_GET = 250;
+    public const CURL_WINDOW_GET = 30;
 
     /**
      * Settings for the background File Emitter
@@ -106,20 +108,23 @@ class Constants {
      *         events.  If lots of logs are failing reduce the concurrent
      *         sending limit.
      */
-    const WORKER_COUNT       = 2;
-    const WORKER_BUFFER      = 250;
-    const WORKER_TIMEOUT     = 15;
-    const WORKER_FOLDER      = "temp/";
-    const WORKER_BUFFER_POST = 50;
-    const WORKER_BUFFER_GET  = 1;
-    const WORKER_WINDOW_POST = 10;
-    const WORKER_WINDOW_GET  = 30;
+    public const WORKER_COUNT = 2;
+    public const WORKER_BUFFER = 250;
+    public const WORKER_TIMEOUT = 15;
+    public const WORKER_FOLDER = 'temp/';
+    public const WORKER_BUFFER_POST = 50;
+    public const WORKER_BUFFER_GET = 1;
+    public const WORKER_WINDOW_POST = 10;
+    public const WORKER_WINDOW_GET = 30;
 
     /**
      * Custom handler to turn all PHP Warnings into ErrorExceptions
+     *
+     * @throws ErrorException
      */
-    public function warning_handler() {
-        set_error_handler(function($errno, $errstr, $errfile, $errline) {
+    public function warning_handler(): void
+    {
+        set_error_handler(static function ($errno, $errstr, $errfile, $errline) {
             throw new ErrorException($errstr, 0, $errno, $errfile, $errline);
         }, E_WARNING);
     }

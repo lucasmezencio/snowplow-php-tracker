@@ -21,10 +21,11 @@
 */
 
 namespace Snowplow\Tracker\Emitters;
+
 use Snowplow\Tracker\Emitter;
 
-class FileEmitter extends Emitter {
-
+class FileEmitter extends Emitter
+{
     // Emitter Parameters
 
     private $type;
@@ -36,7 +37,7 @@ class FileEmitter extends Emitter {
     // Worker Parameters
 
     private $worker = 0;
-    private $worker_paths = array();
+    private $worker_paths = [];
     private $worker_root;
 
     /**
@@ -49,38 +50,52 @@ class FileEmitter extends Emitter {
      * @param int|float|null $timeout
      * @param int|null $buffer_size
      * @param bool|null $debug
+     *
+     * @throws \ErrorException
      */
-    public function __construct($uri, $protocol = NULL, $type = NULL, $workers = NULL, $timeout = NULL, $buffer_size = NULL, $debug = false) {
-
+    public function __construct(
+        string $uri,
+        ?string $protocol = null,
+        string $type = null,
+        int $workers = null,
+        $timeout = null,
+        int $buffer_size = null,
+        bool $debug = false
+    ) {
         // Set error handler to catch warnings
         $this->warning_handler();
 
         // The root package directory for worker logs and runs
-        $this->worker_root = dirname(dirname(__DIR__)).'/';
+        $this->worker_root = dirname(dirname(__DIR__)) . '/';
 
-        $this->type     = $this->getRequestType($type);
-        $this->url      = $this->getCollectorUrl($this->type, $uri, $protocol);
-        $this->log_dir  = $this->worker_root.self::WORKER_FOLDER;
+        $this->type = $this->getRequestType($type);
+        $this->url = $this->getCollectorUrl($this->type, $uri, $protocol);
+        $this->log_dir = $this->worker_root . self::WORKER_FOLDER;
 
-        // Initilize the event log file
+        // Initialize the event log file
         $this->log_file = $this->initLogFile();
+
         if (!is_resource($this->log_file)) {
             $this->fatal_error_occured = true;
-            print_r("Error: Unable to construct event log files: ".$this->log_file."\n");
+
+            print_r("Error: Unable to construct event log files: {$this->log_file}\n");
         }
 
         // Creates worker directories and start the background workers
         $res = $this->initWorkers($workers, $timeout);
+
         if ($res !== true) {
             $this->fatal_error_occured = true;
-            print_r("Error: Unable to construct file emitter without errors: ".$res."\n");
+
+            print_r("Error: Unable to construct file emitter without errors: {$res}\n");
         }
 
         // Restore error handler back to default
         restore_error_handler();
 
-        $buffer = $buffer_size == NULL ? self::WORKER_BUFFER : $buffer_size;
-        $this->setup("file", $debug, $buffer);
+        $buffer = $buffer_size == null ? self::WORKER_BUFFER : $buffer_size;
+
+        $this->setup('file', $debug, $buffer);
     }
 
     /**
@@ -88,56 +103,75 @@ class FileEmitter extends Emitter {
      *
      * @param array $buffer
      * @return bool
+     *
+     * @throws \ErrorException
      */
-    public function send($buffer) {
+    public function send(array $buffer)
+    {
         if (count($buffer) > 0 && !$this->fatal_error_occured) {
-
             // Set error handler to catch warnings
             $this->warning_handler();
 
             // Add jsons to the log file.
             foreach ($buffer as $event) {
-                $res = $this->writeToFile($this->log_file, json_encode($event)."\n");
+                $res = $this->writeToFile($this->log_file, json_encode($event) . "\n");
+
                 if ($res !== true) {
                     $this->fatal_error_occured = true;
+
                     restore_error_handler();
-                    return "Error: Unable to write events to log file\n".$res."\n\n";
+
+                    return "Error: Unable to write events to log file\n{$res}\n\n";
                 }
             }
 
             // Close the log file so it can be copied
             $res = $this->closeFile($this->log_file);
+
             if ($res !== true) {
                 $this->fatal_error_occured = true;
+
                 restore_error_handler();
-                return "Error: Unable to close events log file\n".$res."\n\n";
+
+                return "Error: Unable to close events log file\n{$res}\n\n";
             }
 
             // Add the file to a worker folder.
             $pos = $this->getWorkerPos();
-            $res = $this->copyFile($this->log_dir."events.log", $this->worker_paths[$pos]."events-".rand().".log");
+            $res = $this->copyFile(
+                $this->log_dir . 'events.log',
+                $this->worker_paths[$pos] . 'events-' . rand() . '.log'
+            );
+
             if ($res !== true) {
                 $this->fatal_error_occured = true;
+
                 restore_error_handler();
-                return "Error: Unable to copy events log file to new directory\n".$res."\n\n";
+
+                return "Error: Unable to copy events log file to new directory\n{$res}\n\n";
             }
 
             // Reset the log and continue...
-            $this->log_file = $this->openFile($this->log_dir."events.log");
+            $this->log_file = $this->openFile("{$this->log_dir}events.log");
+
             if (!is_resource($this->log_file)) {
                 $this->fatal_error_occured = true;
+
                 restore_error_handler();
-                return "Error: Unable to reset events log file after copy\n".$res."\n\n";
+
+                return "Error: Unable to reset events log file after copy\n{$res}\n\n";
             }
+
             restore_error_handler();
+
             return true;
         }
-        else if (count($buffer) <= 0 && !$this->fatal_error_occured) {
-            return "Error: Nothing in the buffer to write to an events log file.";
+
+        if (count($buffer) <= 0 && !$this->fatal_error_occured) {
+            return 'Error: Nothing in the buffer to write to an events log file.';
         }
-        else {
-            return "Error: Unable to create workers or manage log files without errors - likely due to invalid write permissions.";
-        }
+
+        return 'Error: Unable to create workers or manage log files without errors - likely due to invalid write permissions.';
     }
 
     /**
@@ -145,11 +179,14 @@ class FileEmitter extends Emitter {
      *
      * @return resource
      */
-    private function initLogFile() {
+    private function initLogFile()
+    {
         $res = $this->makeDir($this->log_dir);
+
         if ($res === true) {
-            $res = $this->openFile($this->log_dir."events.log");
+            $res = $this->openFile("{$this->log_dir}events.log");
         }
+
         return $res;
     }
 
@@ -158,32 +195,37 @@ class FileEmitter extends Emitter {
      *
      * @param int|null $workers
      * @param int|null $timeout
+     *
+     * @return bool|string
      */
-    private function initWorkers($workers, $timeout) {
-        $workers = $workers == NULL ? self::WORKER_COUNT : $workers;
+    private function initWorkers(?int $workers, ?int $timeout)
+    {
+        $workers = $workers == null ? self::WORKER_COUNT : $workers;
 
         // Make the log failure directory
-        $res = $this->makeDir($this->log_dir."failed-logs/");
-        if ($res === true) {
+        $res = $this->makeDir("{$this->log_dir}failed-logs/");
 
+        if ($res === true) {
             // Create the workers
             for ($i = 0; $i < $workers; $i++) {
-                $worker_dir = $this->log_dir."w".$i."/";
+                $worker_dir = "{$this->log_dir}w{$i}/";
 
                 // Store the worker directory
-                array_push($this->worker_paths, $worker_dir);
+                $this->worker_paths[] = $worker_dir;
 
                 // Make the worker directory and start the worker
                 $res = $this->makeDir($worker_dir);
+
                 if ($res === true) {
                     $this->makeWorker($i, $timeout);
-                }
-                else {
+                } else {
                     return $res;
                 }
             }
+
             return true;
         }
+
         return $res;
     }
 
@@ -195,20 +237,21 @@ class FileEmitter extends Emitter {
      * @param int $worker_num
      * @param int|null $timeout
      */
-    private function makeWorker($worker_num, $timeout) {
+    private function makeWorker(int $worker_num, ?int $timeout): void
+    {
         // Grab worker settings from Constants class
-        $timeout = $timeout    == NULL   ? self::WORKER_TIMEOUT : $timeout;
-        $window  = $this->type == "POST" ? self::WORKER_WINDOW_POST : self::WORKER_WINDOW_GET;
-        $buffer  = $this->type == "POST" ? self::WORKER_BUFFER_POST : self::WORKER_BUFFER_GET;
+        $timeout = $timeout == null ? self::WORKER_TIMEOUT : $timeout;
+        $window = $this->type === 'POST' ? self::WORKER_WINDOW_POST : self::WORKER_WINDOW_GET;
+        $buffer = $this->type === 'POST' ? self::WORKER_BUFFER_POST : self::WORKER_BUFFER_GET;
 
         // Make our worker startup command
-        $cmd = "php ".$this->worker_root."Worker.php";
-        $cmd.= " --file_path ".$this->log_dir."w".$worker_num."/";
-        $cmd.= " --url ".$this->url;
-        $cmd.= " --type ".$this->type;
-        $cmd.= " --timeout ".$timeout;
-        $cmd.= " --window ".$window;
-        $cmd.= " --buffer ".$buffer;
+        $cmd = "php {$this->worker_root}Worker.php";
+        $cmd .= " --file_path {$this->log_dir}w{$worker_num}/";
+        $cmd .= " --url {$this->url}";
+        $cmd .= " --type {$this->type}";
+        $cmd .= " --timeout {$timeout}";
+        $cmd .= " --window {$window}";
+        $cmd .= " --buffer {$buffer}";
 
         // Execute command in the background and return
         $this->execInBackground($cmd);
@@ -219,13 +262,13 @@ class FileEmitter extends Emitter {
      *
      * @return int
      */
-    private function getWorkerPos() {
+    private function getWorkerPos(): int
+    {
         if ($this->worker < count($this->worker_paths)) {
             return $this->worker++;
         }
-        else {
-            return $this->worker = 0;
-        }
+
+        return $this->worker = 0;
     }
 
     /**
@@ -236,12 +279,12 @@ class FileEmitter extends Emitter {
      *
      * @param $cmd
      */
-    private function execInBackground($cmd) {
-        if (substr(php_uname(), 0, 7) == "Windows") {
-            pclose(popen("start /B ".$cmd, "w"));
-        }
-        else {
-            exec($cmd." > /dev/null &");
+    private function execInBackground($cmd): void
+    {
+        if (substr(php_uname(), 0, 7) === 'Windows') {
+            pclose(popen("start /B {$cmd}", 'w'));
+        } else {
+            exec("{$cmd} > /dev/null &");
         }
     }
 
@@ -249,7 +292,8 @@ class FileEmitter extends Emitter {
      * Disables debug mode
      * - Only affects the base emitter class
      */
-    public function turnOffDebug($deleteLocal) {
+    public function turnOffDebug($deleteLocal): void
+    {
         $this->debugSwitch($deleteLocal);
     }
 
@@ -260,7 +304,8 @@ class FileEmitter extends Emitter {
      *
      * @return string
      */
-    public function returnUrl() {
+    public function returnUrl(): string
+    {
         return $this->url;
     }
 
@@ -269,7 +314,8 @@ class FileEmitter extends Emitter {
      *
      * @return null|string
      */
-    public function returnType() {
+    public function returnType(): ?string
+    {
         return $this->type;
     }
 
@@ -279,7 +325,8 @@ class FileEmitter extends Emitter {
      *
      * @return null|string
      */
-    public function returnLogDir() {
+    public function returnLogDir(): ?string
+    {
         return $this->log_dir;
     }
 
@@ -288,7 +335,8 @@ class FileEmitter extends Emitter {
      *
      * @return int
      */
-    public function returnWorkerCount() {
+    public function returnWorkerCount(): int
+    {
         return $this->worker;
     }
 
@@ -297,7 +345,8 @@ class FileEmitter extends Emitter {
      *
      * @return array
      */
-    public function returnWorkerPaths() {
+    public function returnWorkerPaths(): array
+    {
         return $this->worker_paths;
     }
 }

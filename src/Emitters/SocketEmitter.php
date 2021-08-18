@@ -21,11 +21,12 @@
 */
 
 namespace Snowplow\Tracker\Emitters;
+
 use Snowplow\Tracker\Emitter;
 use Exception;
 
-class SocketEmitter extends Emitter {
-
+class SocketEmitter extends Emitter
+{
     // Emitter Parameters
 
     private $uri;
@@ -37,6 +38,7 @@ class SocketEmitter extends Emitter {
 
     private $socket_failed = false;
     private $socket;
+    private $debug = false;
 
     /**
      * Creates a Socket Emitter
@@ -48,22 +50,28 @@ class SocketEmitter extends Emitter {
      * @param int|null $buffer_size
      * @param bool|null $debug
      */
-    public function __construct($uri, $ssl = NULL, $type = NULL, $timeout = NULL, $buffer_size = NULL, $debug = NULL) {
-        $this->type    = $this->getRequestType($type);
-        $this->uri     = $uri;
-        $this->ssl     = $ssl == NULL ? self::DEFAULT_SSL : (bool) $ssl;
-        $this->timeout = $timeout == NULL ? self::SOCKET_TIMEOUT : $timeout;
+    public function __construct(
+        string $uri,
+        bool $ssl = null,
+        string $type = null,
+        $timeout = null,
+        int $buffer_size = null,
+        bool $debug = null
+    ) {
+        $this->type = $this->getRequestType($type);
+        $this->uri = $uri;
+        $this->ssl = $ssl === null ? self::DEFAULT_SSL : (bool)$ssl;
+        $this->timeout = $timeout === null ? self::SOCKET_TIMEOUT : $timeout;
 
         // If debug is on create a requests_results array
         if ($debug === true) {
             $this->debug = true;
-            $this->requests_results = array();
+            $this->requests_results = [];
         }
-        else {
-            $this->debug = false;
-        }
-        $buffer = $buffer_size == NULL ? self::SOCKET_BUFFER : $buffer_size;
-        $this->setup("socket", $debug, $buffer);
+
+        $buffer = $buffer_size === null ? self::SOCKET_BUFFER : $buffer_size;
+
+        $this->setup('socket', $debug, $buffer);
     }
 
     /**
@@ -72,49 +80,53 @@ class SocketEmitter extends Emitter {
      * @param array $buffer
      * @return bool $res
      */
-    public function send($buffer) {
+    public function send(array $buffer)
+    {
         if (count($buffer) > 0) {
             $uri = $this->uri;
             $type = $this->type;
             $socket_made = $this->makeSocket();
 
             if (is_bool($socket_made) && $socket_made) {
-                if ($type == "POST") {
+                if ($type === 'POST') {
                     $data = $this->getPostRequest($this->batchUpdateStm($buffer));
                     $body = $this->getRequestBody($uri, $data, $type);
 
                     // Send requests to the socket
+                    return $this->makeRequest($body);
+                }
+
+                $res = '';
+                $res_ = '';
+
+                foreach ($buffer as $event) {
+                    $data = http_build_query($this->updateStm($event));
+                    $body = $this->getRequestBody($uri, $data, $type);
+
+                    // Send request to the socket
                     $res = $this->makeRequest($body);
-                    return $res;
-                }
-                else {
-                    $res = "";
-                    $res_ = "";
-                    foreach ($buffer as $event) {
-                        $data = http_build_query($this->updateStm($event));
-                        $body = $this->getRequestBody($uri, $data, $type);
 
-                        // Send request to the socket
-                        $res = $this->makeRequest($body);
-                        if (!is_bool($res)) {
-                            $res_.= "Error: Socket write failed\n".$res;
-                        }
-                        $this->makeSocket();
+                    if (!is_bool($res)) {
+                        $res_ .= "Error: Socket write failed\n{$res}";
                     }
-                    fclose($this->socket);
 
-                    // If we have had any errors return these
-                    if ($res_ != "") {
-                        $res = $res_;
-                    }
-                    return $res;
+                    $this->makeSocket();
                 }
+
+                fclose($this->socket);
+
+                // If we have had any errors return these
+                if ($res_ !== '') {
+                    $res = $res_;
+                }
+
+                return $res;
             }
-            else {
-                return "Error: Socket could not be created\n".$socket_made;
-            }
+
+            return "Error: Socket could not be created\n{$socket_made}";
         }
-        return "No events to write";
+
+        return 'No events to write';
     }
 
     /**
@@ -125,25 +137,25 @@ class SocketEmitter extends Emitter {
      * @param bool $retry - If we want to allow the function to make a second attempt.
      * @return bool - Returns if write was successful.
      */
-    private function makeRequest($data, $retry = true) {
+    private function makeRequest(string $data, bool $retry = true)
+    {
         $bytes_written = 0;
         $bytes_total = strlen($data);
         $closed = false;
-        $res_ = "";
+        $res_ = '';
 
         // Try to send data while bytes still have to be written to the socket
         while (!$closed && $bytes_written < $bytes_total) {
             try {
                 $written = fwrite($this->socket, substr($data, $bytes_written));
-            }
-            catch (Exception $e) {
-                $res_.= "Error: fwrite exception - ".$e."\n";
+            } catch (Exception $e) {
+                $res_ .= "Error: fwrite exception - {$e}\n";
                 $closed = true;
             }
+
             if (!isset($written) || !$written) {
                 $closed = true;
-            }
-            else {
+            } else {
                 $bytes_written += $written;
             }
         }
@@ -151,18 +163,18 @@ class SocketEmitter extends Emitter {
         // If the socket could not be written attempt again
         if ($closed) {
             fclose($this->socket);
+
             if ($retry) {
                 $socket_made = $this->makeSocket();
+
                 if (is_bool($socket_made) && $socket_made) {
                     return $this->makeRequest($data, false);
                 }
-                else {
-                    return "Error: Socket could not be created\n".$socket_made."\n".$res_;
-                }
+
+                return "Error: Socket could not be created\n{$socket_made}\n{$res_}";
             }
-            else {
-                return "Error: socket cannot be written after retry\n".$res_;
-            }
+
+            return "Error: socket cannot be written after retry\n{$res_}";
         }
 
         // If debug is on store the request result
@@ -171,6 +183,7 @@ class SocketEmitter extends Emitter {
         }
 
         fclose($this->socket);
+
         return true;
     }
 
@@ -180,26 +193,31 @@ class SocketEmitter extends Emitter {
      *
      * @return bool|resource - Returns a socket resource or false if it fails.
      */
-    private function makeSocket() {
+    private function makeSocket()
+    {
         if ($this->socket_failed) {
-            return "Error: socket cannot be created";
+            return 'Error: socket cannot be created';
         }
 
-        $protocol = $this->ssl ? "ssl" : "tcp";
-        $port     = $this->ssl ? 443 : 80;
+        $protocol = $this->ssl ? 'ssl' : 'tcp';
+        $port = $this->ssl ? 443 : 80;
 
         try {
-            $socket = pfsockopen($protocol."://".$this->uri, $port, $errno, $errstr, $this->timeout);
-            if ($errno != 0) {
+            $socket = pfsockopen("{$protocol}://{$this->uri}", $port, $errno, $errstr, $this->timeout);
+
+            if ($errno !== 0) {
                 $this->socket_failed = true;
-                return "Error: socket creation failed on error number - ".$errno;
+
+                return "Error: socket creation failed on error number - {$errno}";
             }
+
             $this->socket = $socket;
+
             return true;
-        }
-        catch (Exception $e) {
+        } catch (Exception $e) {
             $this->socket_failed = true;
-            return "Error: socket exception - ".$e;
+
+            return "Error: socket exception - {$e}";
         }
     }
 
@@ -209,25 +227,27 @@ class SocketEmitter extends Emitter {
      * @param string $uri - Collector URI to be used for the request
      * @param string|array $data - Data to be included in the Request
      * @param string $type - Type of request to be made (POST || GET)
+     *
      * @return string - Returns the request body
      */
-    private function getRequestBody($uri, $data, $type) {
-        if ($type == "POST") {
-            $req = "POST http://".$uri.self::POST_PATH." ";
-            $req.= "HTTP/1.1\r\n";
-            $req.= "Host: ".$uri."\r\n";
-            $req.= "Content-Type: ".self::POST_CONTENT_TYPE."\r\n";
-            $req.= "Content-length: ".strlen($data)."\r\n";
-            $req.= "Accept: ".self::POST_ACCEPT."\r\n\r\n";
-            $req.= $data."\r\n\r\n";
+    private function getRequestBody(string $uri, $data, string $type): string
+    {
+        if ($type === 'POST') {
+            $req = "POST http://{$uri}" . self::POST_PATH . ' ';
+            $req .= "HTTP/1.1\r\n";
+            $req .= "Host: {$uri}\r\n";
+            $req .= 'Content-Type: ' . self::POST_CONTENT_TYPE . "\r\n";
+            $req .= 'Content-length: ' . strlen($data) . "\r\n";
+            $req .= 'Accept: ' . self::POST_ACCEPT . "\r\n\r\n";
+            $req .= "{$data}\r\n\r\n";
+        } else {
+            $req = "GET http://{$uri}" . self::GET_PATH . "?{$data} ";
+            $req .= "HTTP/1.1\r\n";
+            $req .= "Host: {$uri}\r\n";
+            $req .= "Query: {$data}\r\n";
+            $req .= "\r\n";
         }
-        else {
-            $req = "GET http://".$uri.self::GET_PATH."?".$data." ";
-            $req.= "HTTP/1.1\r\n";
-            $req.= "Host: ".$uri."\r\n";
-            $req.= "Query: ".$data."\r\n";
-            $req.= "\r\n";
-        }
+
         return $req;
     }
 
@@ -237,9 +257,14 @@ class SocketEmitter extends Emitter {
      * @param array $buffer
      * @return string - Returns a json_encoded string with all of the events to be sent.
      */
-    private function getPostRequest($buffer) {
-        $data = json_encode(array("schema" => self::POST_REQ_SCHEMA, "data" => $buffer));
-        return $data;
+    private function getPostRequest(array $buffer): string
+    {
+        return json_encode(
+            [
+                'schema' => self::POST_REQ_SCHEMA,
+                'data' => $buffer,
+            ]
+        );
     }
 
     /**
@@ -253,10 +278,12 @@ class SocketEmitter extends Emitter {
      *
      * @param bool $deleteLocal - Empty results array
      */
-    public function turnOffDebug($deleteLocal) {
+    public function turnOffDebug(bool $deleteLocal): void
+    {
         $this->debug = false;
+
         if ($deleteLocal) {
-            $this->requests_results = array();
+            $this->requests_results = [];
         }
 
         // Switch debug off in Base Emitter Class
@@ -270,7 +297,8 @@ class SocketEmitter extends Emitter {
      *
      * @return mixed
      */
-    public function returnUri() {
+    public function returnUri()
+    {
         return $this->uri;
     }
 
@@ -279,7 +307,8 @@ class SocketEmitter extends Emitter {
      *
      * @return bool|null
      */
-    public function returnSsl() {
+    public function returnSsl(): ?bool
+    {
         return $this->ssl;
     }
 
@@ -288,7 +317,8 @@ class SocketEmitter extends Emitter {
      *
      * @return float|null
      */
-    public function returnTimeout() {
+    public function returnTimeout()
+    {
         return $this->timeout;
     }
 
@@ -297,7 +327,8 @@ class SocketEmitter extends Emitter {
      *
      * @return null|string
      */
-    public function returnType() {
+    public function returnType(): ?string
+    {
         return $this->type;
     }
 
@@ -306,7 +337,8 @@ class SocketEmitter extends Emitter {
      *
      * @return resource|null
      */
-    public function returnSocket() {
+    public function returnSocket()
+    {
         return $this->socket;
     }
 
@@ -315,7 +347,8 @@ class SocketEmitter extends Emitter {
      *
      * @return bool
      */
-    public function returnSocketIsFailed() {
+    public function returnSocketIsFailed(): bool
+    {
         return $this->socket_failed;
     }
 
@@ -326,7 +359,8 @@ class SocketEmitter extends Emitter {
      *
      * @return array
      */
-    public function returnRequestResults() {
+    public function returnRequestResults(): array
+    {
         return $this->requests_results;
     }
 
@@ -336,24 +370,27 @@ class SocketEmitter extends Emitter {
      * @param string $res
      * @param string $data - Raw POST body we are writing to the socket
      */
-    private function storeRequestResults($res, $data) {
+    private function storeRequestResults(string $res, string $data): void
+    {
         // Get the Response code...
         $contents = explode("\n", $res);
-        $status = explode(" ", $contents[0], 3);
-        $array["code"] = $status[1];
+        $status = explode(' ', $contents[0], 3);
+        $array['code'] = $status[1];
 
         // Store the Body Payload
         $contents = explode("\n", $data);
-        if ($this->type == "POST") {
-            $array["data"] = $contents[count($contents)-3];
-        }
-        else {
+
+        if ($this->type === 'POST') {
+            $array['data'] = $contents[count($contents) - 3];
+        } else {
             $data = substr($contents[2], 7, -1);
+
             parse_str($data, $output);
-            $array["data"] = json_encode($output);
+
+            $array['data'] = json_encode($output);
         }
 
         // Push the response code and body payload into the results array
-        array_push($this->requests_results, $array);
+        $this->requests_results[] = $array;
     }
 }

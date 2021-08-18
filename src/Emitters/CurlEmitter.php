@@ -21,10 +21,11 @@
 */
 
 namespace Snowplow\Tracker\Emitters;
+
 use Snowplow\Tracker\Emitter;
 
-class CurlEmitter extends Emitter {
-
+class CurlEmitter extends Emitter
+{
     // Emitter Parameters
 
     private $type;
@@ -32,10 +33,11 @@ class CurlEmitter extends Emitter {
 
     // Curl Specific Parameters
 
-    private $final_payload_buffer = array();
-    private $curl_buffer = array();
+    private $final_payload_buffer = [];
+    private $curl_buffer = [];
     private $curl_limit;
     private $rolling_window;
+    private $debug = false;
 
     /**
      * Constructs an async curl emitter.
@@ -45,24 +47,30 @@ class CurlEmitter extends Emitter {
      * @param string|null $type
      * @param int|null $buffer_size
      * @param bool $debug
+     *
+     * @throws \ErrorException
      */
-    public function __construct($uri, $protocol = NULL, $type = NULL, $buffer_size = NULL, $debug = false) {
-        $this->type           = $this->getRequestType($type);
-        $this->url            = $this->getCollectorUrl($this->type, $uri, $protocol);
-        $this->curl_limit     = $this->type == "POST" ? self::CURL_AMOUNT_POST : self::CURL_AMOUNT_GET;
-        $this->rolling_window = $this->type == "POST" ? self::CURL_WINDOW_POST : self::CURL_WINDOW_GET;
+    public function __construct(
+        string $uri,
+        ?string $protocol = null,
+        string $type = null,
+        int $buffer_size = null,
+        bool $debug = false
+    ) {
+        $this->type = $this->getRequestType($type);
+        $this->url = $this->getCollectorUrl($this->type, $uri, $protocol);
+        $this->curl_limit = $this->type === 'POST' ? self::CURL_AMOUNT_POST : self::CURL_AMOUNT_GET;
+        $this->rolling_window = $this->type === 'POST' ? self::CURL_WINDOW_POST : self::CURL_WINDOW_GET;
 
         // If debug is on create a requests_results array
         if ($debug === true) {
             $this->debug = true;
-            $this->debug_payloads = array();
-            $this->requests_results = array();
+            $this->debug_payloads = [];
+            $this->requests_results = [];
         }
-        else {
-            $this->debug = false;
-        }
-        $buffer = $buffer_size == NULL ? self::CURL_BUFFER : $buffer_size;
-        $this->setup("curl", $debug, $buffer);
+
+        $buffer = $buffer_size === null ? self::CURL_BUFFER : $buffer_size;
+        $this->setup('curl', $debug, $buffer);
     }
 
     /**
@@ -73,20 +81,21 @@ class CurlEmitter extends Emitter {
      * @param $buffer - An array of events we are going to convert into curl resources
      * @param bool $curl_send - Whether or not we are going to send the buffered curl
      *                          objects before we reach the limit
+     *
      * @return bool|string - Either true or an error string
      */
-    public function send($buffer, $curl_send = false) {
+    public function send($buffer, bool $curl_send = false)
+    {
         $type = $this->type;
         $debug = $this->debug;
 
         // If the sent buffer contains events...
         if (count($buffer) > 0) {
-            if ($type == "POST") {
-                array_push($this->final_payload_buffer, $buffer);
-            }
-            else {
+            if ($type === 'POST') {
+                $this->final_payload_buffer[] = $buffer;
+            } else {
                 foreach ($buffer as $event) {
-                    array_push($this->final_payload_buffer, $event);
+                    $this->final_payload_buffer[] = $event;
                 }
             }
         }
@@ -94,15 +103,18 @@ class CurlEmitter extends Emitter {
         if (count($this->final_payload_buffer) >= $this->curl_limit) {
             return $this->mkCurlRequests($this->final_payload_buffer, $type, $debug);
         }
-        else if ($curl_send === true) {
+
+        if ($curl_send === true) {
             if (count($this->final_payload_buffer) > 0) {
                 return $this->mkCurlRequests($this->final_payload_buffer, $type, $debug);
             }
-            else {
-                return "Error: No curls to send.";
-            }
+
+            return 'Error: No curls to send.';
         }
-        return "Error: Still adding to the curl buffer; count ".count($this->final_payload_buffer)." - limit ".$this->curl_limit;
+
+        return 'Error: Still adding to the curl buffer; count ' . count(
+                $this->final_payload_buffer
+            ) . " - limit {$this->curl_limit}";
     }
 
     /**
@@ -111,31 +123,36 @@ class CurlEmitter extends Emitter {
      * @param array $payloads - Array of payloads to be sent
      * @param string $type - Type of requests to be made
      * @param bool $debug - If debug is on or not
+     *
      * @return bool|string - Returns true or a string of errors
      */
-    private function mkCurlRequests($payloads, $type, $debug) {
+    private function mkCurlRequests(array $payloads, string $type, bool $debug)
+    {
         // Empty the global buffer.
-        $this->final_payload_buffer = array();
+        $this->final_payload_buffer = [];
 
-        if ($type == 'POST') {
+        if ($type === 'POST') {
             foreach ($payloads as $buffer) {
                 $payload = $this->getPostRequest($this->batchUpdateStm($buffer));
                 $curl = $this->getCurlRequest($payload, $type);
-                array_push($this->curl_buffer, $curl);
+                $this->curl_buffer[] = $curl;
 
                 // If debug is on; store the handle and the payload
                 if ($debug) {
-                    array_push($this->debug_payloads, array("handle" => $curl, "payload" => $payload));
+                    $this->debug_payloads[] = [
+                        'handle' => $curl,
+                        'payload' => $payload,
+                    ];
                 }
             }
-        }
-        else {
+        } else {
             foreach ($payloads as $event) {
                 $payload = http_build_query($this->updateStm($event));
                 $curl = $this->getCurlRequest($payload, $type);
-                array_push($this->curl_buffer, $curl);
+                $this->curl_buffer[] = $curl;
             }
         }
+
         return $this->rollingCurl($this->curl_buffer, $debug);
     }
 
@@ -146,15 +163,17 @@ class CurlEmitter extends Emitter {
      *
      * @param array $curls - Array of curls to be sent
      * @param bool $debug - If Debug is on or not
+     *
      * @return bool|string - Returns true or a string of errors
      */
-    private function rollingCurl($curls, $debug) {
+    private function rollingCurl(array $curls, bool $debug)
+    {
         // Empty the global buffer.
-        $this->curl_buffer = array();
+        $this->curl_buffer = [];
 
         // Create a results string to log potential errors
         $res = true;
-        $res_ = "";
+        $res_ = '';
 
         // Rolling Window == How many requests concurrently.
         $rolling_window = $this->rolling_window;
@@ -171,21 +190,22 @@ class CurlEmitter extends Emitter {
         do {
             do {
                 $execrun = curl_multi_exec($master, $running);
-            } while ($execrun == CURLM_CALL_MULTI_PERFORM);
+            } while ($execrun === CURLM_CALL_MULTI_PERFORM);
 
             while ($done = curl_multi_info_read($master)) {
                 if ($debug) {
                     $info = curl_getinfo($done['handle']);
-                    if ($info['http_code'] != 200) {
-                        $res_.= "Error: Curl Request Failed with response code - ".$info['http_code']."\n";
+
+                    if ((int)$info['http_code'] !== 200) {
+                        $res_ .= "Error: Curl Request Failed with response code - {$info['http_code']}\n";
                     }
 
-                    if ($this->type == "POST") {
+                    if ($this->type === 'POST') {
                         $data = $this->getDebugData($done);
-                    }
-                    else {
+                    } else {
                         $data = $info['url'];
                     }
+
                     $this->storeRequestResults($info['http_code'], $data);
                 }
 
@@ -194,13 +214,15 @@ class CurlEmitter extends Emitter {
                     $ch = $curls[$i++];
                     curl_multi_add_handle($master, $ch);
                 }
+
                 curl_multi_remove_handle($master, $done['handle']);
                 curl_close($done['handle']);
             }
         } while ($running);
+
         curl_multi_close($master);
 
-        if ($res_ != "") {
+        if ($res_ !== '') {
             $res = $res_;
         }
 
@@ -212,24 +234,30 @@ class CurlEmitter extends Emitter {
      *
      * @param string $payload - Data included in request
      * @param string $type - Type of request to be made
+     *
      * @return resource
      */
-    private function getCurlRequest($payload, $type) {
+    private function getCurlRequest(string $payload, string $type)
+    {
         $ch = curl_init($this->url);
-        if ($type == "POST") {
-            $header = array(
-                'Content-Type: '.self::POST_CONTENT_TYPE,
-                'Accept: '.self::POST_ACCEPT,
-                'Content-Length: '.strlen($payload));
-            curl_setopt($ch, CURLOPT_CUSTOMREQUEST, "POST");
+
+        if ($type === 'POST') {
+            $header = [
+                'Content-Type: ' . self::POST_CONTENT_TYPE,
+                'Accept: ' . self::POST_ACCEPT,
+                'Content-Length: ' . strlen($payload),
+            ];
+
+            curl_setopt($ch, CURLOPT_CUSTOMREQUEST, 'POST');
             curl_setopt($ch, CURLOPT_POSTFIELDS, $payload);
             curl_setopt($ch, CURLOPT_HTTPHEADER, $header);
+        } else {
+            curl_setopt($ch, CURLOPT_CUSTOMREQUEST, 'GET');
+            curl_setopt($ch, CURLOPT_URL, "{$this->url}?{$payload}");
         }
-        else {
-            curl_setopt($ch, CURLOPT_CUSTOMREQUEST, "GET");
-            curl_setopt($ch, CURLOPT_URL, $this->url."?".$payload);
-        }
+
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+
         return $ch;
     }
 
@@ -237,11 +265,17 @@ class CurlEmitter extends Emitter {
      * Compiles events from buffer into a single string.
      *
      * @param array $buffer
+     *
      * @return string - Returns a json_encoded string with all of the events to be sent.
      */
-    private function getPostRequest($buffer) {
-        $data = json_encode(array("schema" => self::POST_REQ_SCHEMA, "data" => $buffer));
-        return $data;
+    private function getPostRequest(array $buffer): string
+    {
+        return json_encode(
+            [
+                'schema' => self::POST_REQ_SCHEMA,
+                'data' => $buffer,
+            ]
+        );
     }
 
     /**
@@ -255,10 +289,12 @@ class CurlEmitter extends Emitter {
      *
      * @param bool $deleteLocal - Empty results array
      */
-    public function turnOffDebug($deleteLocal) {
+    public function turnOffDebug(bool $deleteLocal): void
+    {
         $this->debug = false;
+
         if ($deleteLocal) {
-            $this->requests_results = array();
+            $this->requests_results = [];
         }
 
         // Switch Debug off in Base Emitter Class
@@ -272,7 +308,8 @@ class CurlEmitter extends Emitter {
      *
      * @return string
      */
-    public function returnUrl() {
+    public function returnUrl(): string
+    {
         return $this->url;
     }
 
@@ -281,7 +318,8 @@ class CurlEmitter extends Emitter {
      *
      * @return null|string
      */
-    public function returnType() {
+    public function returnType(): ?string
+    {
         return $this->type;
     }
 
@@ -290,7 +328,8 @@ class CurlEmitter extends Emitter {
      *
      * @return array
      */
-    public function returnCurlBuffer() {
+    public function returnCurlBuffer(): array
+    {
         return $this->curl_buffer;
     }
 
@@ -299,7 +338,8 @@ class CurlEmitter extends Emitter {
      *
      * @return int
      */
-    public function returnCurlAmount() {
+    public function returnCurlAmount(): int
+    {
         return $this->curl_limit;
     }
 
@@ -308,7 +348,8 @@ class CurlEmitter extends Emitter {
      *
      * @return int
      */
-    public function returnRollingWindow() {
+    public function returnRollingWindow(): int
+    {
         return $this->rolling_window;
     }
 
@@ -319,7 +360,8 @@ class CurlEmitter extends Emitter {
      *
      * @return array
      */
-    public function returnRequestResults() {
+    public function returnRequestResults(): array
+    {
         return $this->requests_results;
     }
 
@@ -327,14 +369,18 @@ class CurlEmitter extends Emitter {
      * Returns the payload associated with the finished curl
      *
      * @param array $done - The array made by finishing a curl
+     *
      * @return string - Payload
      */
-    private function getDebugData($done) {
-        $data = "";
+    private function getDebugData(array $done): string
+    {
+        $data = '';
+
         for ($i = 0; $i < count($this->debug_payloads); $i++) {
             $debug_payload = $this->debug_payloads[$i];
-            if ($debug_payload["handle"] == $done['handle']) {
-                $data = $debug_payload["payload"];
+
+            if ($debug_payload['handle'] === $done['handle']) {
+                $data = $debug_payload['payload'];
 
                 // Delete the curl handle & payload from storage
                 unset($this->debug_payloads[$i]);
@@ -343,6 +389,7 @@ class CurlEmitter extends Emitter {
                 $this->debug_payloads = array_values($this->debug_payloads);
             }
         }
+
         return $data;
     }
 
@@ -352,16 +399,20 @@ class CurlEmitter extends Emitter {
      * @param $code
      * @param $data
      */
-    private function storeRequestResults($code, $data) {
-        $array["code"] = $code;
-        if ($this->type == "GET") {
-            $temp = substr($data,(strpos($data,"?")+1),-1);
+    private function storeRequestResults($code, $data): void
+    {
+        $array['code'] = $code;
+
+        if ($this->type === 'GET') {
+            $temp = substr($data, (strpos($data, '?') + 1), -1);
+
             parse_str($temp, $output);
-            $array["data"] = json_encode($output);
+
+            $array['data'] = json_encode($output);
+        } else {
+            $array['data'] = $data;
         }
-        else {
-            $array["data"] = $data;
-        }
-        array_push($this->requests_results, $array);
+
+        $this->requests_results[] = $array;
     }
 }

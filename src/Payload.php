@@ -23,8 +23,8 @@
 
 namespace Snowplow\Tracker;
 
-class Payload extends Constants {
-
+class Payload extends Constants
+{
     // Payload Parameters
 
     private $nv_pairs;
@@ -34,14 +34,16 @@ class Payload extends Constants {
      *
      * @param int|null $timestamp_in_ms - Unix timestamp in milliseconds
      */
-    public function __construct($timestamp_in_ms = NULL) {
+    public function __construct(int $timestamp_in_ms = null)
+    {
         // Construct a name-value pairs array
-        $this->nv_pairs = array();
+        $this->nv_pairs = [];
 
         // Add Time Stamp(s) to array on event creation
-        $this->add("dtm", $_SERVER['REQUEST_TIME'] * 1000);
-        if ($timestamp_in_ms != NULL) {
-            $this->add("ttm", $timestamp_in_ms);
+        $this->add('dtm', $_SERVER['REQUEST_TIME'] * 1000);
+
+        if ($timestamp_in_ms !== null) {
+            $this->add('ttm', $timestamp_in_ms);
         }
     }
 
@@ -51,8 +53,9 @@ class Payload extends Constants {
      * @param string $name - Key for nv pair
      * @param string|int|bool $value - Value for nv pair
      */
-    public function add($name, $value) {
-        if ($value != NULL && $value != "") {
+    public function add(string $name, $value): void
+    {
+        if ($value !== null && $value !== '') {
             $this->nv_pairs[$name] = $value;
         }
     }
@@ -62,8 +65,9 @@ class Payload extends Constants {
      *
      * @param array $dict - Single level array of name => value pairs
      */
-    public function addDict($dict) {
-        foreach($dict as $name => $value) {
+    public function addDict(array $dict): void
+    {
+        foreach ($dict as $name => $value) {
             $this->add($name, $value);
         }
     }
@@ -72,17 +76,17 @@ class Payload extends Constants {
      * Adds a JSON formatted array to the payload
      * Json encodes the array first (turns it into a string) and then will encode (or not) the string in base64
      *
-     * @param array $json - Custom context for the event
+     * @param array|null $json - Custom context for the event
      * @param bool $base_64 - If the payload is base64 encoded
      * @param string $name_encoded - Name of the field when encode_base64 is not set
      * @param string $name_not_encoded - Name of the field when encode_base64 is set
      */
-    public function addJson($json, $base_64, $name_encoded, $name_not_encoded) {
-        if ($json != NULL) {
+    public function addJson(?array $json, bool $base_64, string $name_encoded, string $name_not_encoded): void
+    {
+        if ($json !== null) {
             if ($base_64) {
                 $this->add($name_encoded, base64_encode(json_encode($json)));
-            }
-            else {
+            } else {
                 $this->add($name_not_encoded, json_encode($json));
             }
         }
@@ -93,7 +97,8 @@ class Payload extends Constants {
      *
      * @return array - Returns the payloads nv_pairs array.
      */
-    public function get() {
+    public function get(): array
+    {
         return $this->nv_pairs;
     }
 }

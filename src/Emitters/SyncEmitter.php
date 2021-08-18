@@ -21,16 +21,16 @@
 */
 
 namespace Snowplow\Tracker\Emitters;
+
 use Snowplow\Tracker\Emitter;
-use Requests;
-use Exception;
 
-class SyncEmitter extends Emitter {
-
+class SyncEmitter extends Emitter
+{
     // Emitter Parameters
 
     private $type;
     private $url;
+    private $debug = false;
 
     /**
      * Creates a Synchronous Emitter
@@ -41,20 +41,25 @@ class SyncEmitter extends Emitter {
      * @param int|null $buffer_size
      * @param bool $debug
      */
-    public function __construct($uri, $protocol = NULL, $type = NULL, $buffer_size = NULL, $debug = false) {
+    public function __construct(
+        string $uri,
+        ?string $protocol = null,
+        string $type = null,
+        int $buffer_size = null,
+        bool $debug = false
+    ) {
         $this->type = $this->getRequestType($type);
-        $this->url  = $this->getCollectorUrl($this->type, $uri, $protocol);
+        $this->url = $this->getCollectorUrl($this->type, $uri, $protocol);
 
         // If debug is on create a requests_results array
         if ($debug === true) {
             $this->debug = true;
-            $this->requests_results = array();
+            $this->requests_results = [];
         }
-        else {
-            $this->debug = false;
-        }
-        $buffer = $buffer_size == NULL ? self::SYNC_BUFFER : $buffer_size;
-        $this->setup("sync", $debug, $buffer);
+
+        $buffer = $buffer_size === null ? self::SYNC_BUFFER : $buffer_size;
+
+        $this->setup('sync', $debug, $buffer);
     }
 
     /**
@@ -63,29 +68,37 @@ class SyncEmitter extends Emitter {
      * @param array $buffer
      * @return bool|string $res - Return true or an error string
      */
-    public function send($buffer) {
+    public function send(array $buffer)
+    {
         if (count($buffer) > 0) {
             $res = true;
             $type = $this->type;
-            if ($type == "GET") {
-                $res_ = "";
+
+            if ($type === 'GET') {
+                $res_ = '';
+
                 foreach ($buffer as $payload) {
                     $res = $this->curlRequest($this->updateStm($payload), $type);
+
                     if (!is_bool($res)) {
-                        $res_.= $res;
+                        $res_ .= $res;
                     }
                 }
-                if ($res_ != "") {
+
+                if ($res_ !== '') {
                     $res = $res_;
                 }
+            } else {
+                if ($type === 'POST') {
+                    $data = $this->getPostRequest($this->batchUpdateStm($buffer));
+                    $res = $this->curlRequest($data, $type);
+                }
             }
-            else if ($type == "POST") {
-                $data = $this->getPostRequest($this->batchUpdateStm($buffer));
-                $res = $this->curlRequest($data, $type);
-            }
+
             return $res;
         }
-        return "No events to send";
+
+        return 'No events to send';
     }
 
     // Send Functions
@@ -97,26 +110,30 @@ class SyncEmitter extends Emitter {
      * @param string $type - The type of the Request
      * @return bool|string - Return true if successful request or an error string
      */
-    private function curlRequest($data, $type) {
+    private function curlRequest(array $data, string $type)
+    {
         $res = true;
-        $res_ = "";
+        $res_ = '';
 
         // Create a cURL handle, set transfer options and execute
         $ch = curl_init($this->url);
-        if ($type == 'POST') {
+
+        if ($type === 'POST') {
             $json_data = json_encode($data);
-            $header = array(
-                'Content-Type: '.self::POST_CONTENT_TYPE,
-                'Accept: '.self::POST_ACCEPT,
-                'Content-Length: '.strlen($json_data));
-            curl_setopt($ch, CURLOPT_CUSTOMREQUEST, "POST");
+            $header = [
+                'Content-Type: ' . self::POST_CONTENT_TYPE,
+                'Accept: ' . self::POST_ACCEPT,
+                'Content-Length: ' . strlen($json_data),
+            ];
+
+            curl_setopt($ch, CURLOPT_CUSTOMREQUEST, 'POST');
             curl_setopt($ch, CURLOPT_POSTFIELDS, $json_data);
             curl_setopt($ch, CURLOPT_HTTPHEADER, $header);
+        } else {
+            curl_setopt($ch, CURLOPT_CUSTOMREQUEST, 'GET');
+            curl_setopt($ch, CURLOPT_URL, "{$this->url}?" . http_build_query($data));
         }
-        else {
-            curl_setopt($ch, CURLOPT_CUSTOMREQUEST, "GET");
-            curl_setopt($ch, CURLOPT_URL, $this->url."?".http_build_query($data));
-        }
+
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
         curl_exec($ch);
 
@@ -124,24 +141,27 @@ class SyncEmitter extends Emitter {
             if ($this->debug) {
                 $info = curl_getinfo($ch);
                 $this->storeRequestResults($info['http_code'], $data);
-                if ($info['http_code'] != 200) {
-                    $res_.= "Sync ".$type." Request Failed: ".$info['http_code'];
+
+                if ((int)$info['http_code'] !== 200) {
+                    $res_ .= "Sync {$type} Request Failed: {$info['http_code']}";
                 }
             }
-        }
-        else {
+        } else {
             if ($this->debug) {
                 $this->storeRequestResults(404, $data);
             }
-            $res_.="Sync ".$type." Request Failed: ".curl_error($ch);
+
+            $res_ .= "Sync {$type} Request Failed: " . curl_error($ch);
         }
+
         // Close handle
         curl_close($ch);
 
         // If request failed return error string, else return true
-        if ($res_ != "") {
+        if ($res_ !== '') {
             $res = $res_;
         }
+
         return $res;
     }
 
@@ -156,10 +176,12 @@ class SyncEmitter extends Emitter {
      *
      * @param bool $deleteLocal - Empty results array
      */
-    public function turnOffDebug($deleteLocal) {
+    public function turnOffDebug(bool $deleteLocal): void
+    {
         $this->debug = false;
+
         if ($deleteLocal) {
-            $this->requests_results = array();
+            $this->requests_results = [];
         }
 
         // Switch Debug off in Base Emitter Class
@@ -174,9 +196,12 @@ class SyncEmitter extends Emitter {
      * @param array $buffer
      * @return array - POST Request formatted array
      */
-    private function getPostRequest($buffer) {
-        $data = array("schema" => self::POST_REQ_SCHEMA, "data" => $buffer);
-        return $data;
+    private function getPostRequest(array $buffer): array
+    {
+        return [
+            'schema' => self::POST_REQ_SCHEMA,
+            'data' => $buffer,
+        ];
     }
 
     // Sync Return Functions
@@ -186,7 +211,8 @@ class SyncEmitter extends Emitter {
      *
      * @return string
      */
-    public function returnUrl() {
+    public function returnUrl(): string
+    {
         return $this->url;
     }
 
@@ -195,7 +221,8 @@ class SyncEmitter extends Emitter {
      *
      * @return null|string
      */
-    public function returnType() {
+    public function returnType(): ?string
+    {
         return $this->type;
     }
 
@@ -206,7 +233,8 @@ class SyncEmitter extends Emitter {
      *
      * @return array - Dynamic array of stored results
      */
-    public function returnRequestResults() {
+    public function returnRequestResults(): array
+    {
         return $this->requests_results;
     }
 
@@ -216,9 +244,10 @@ class SyncEmitter extends Emitter {
      * @param int $code - Is the response from a GET or POST request
      * @param array $data - The payload array that is being sent
      */
-    private function storeRequestResults($code, array $data) {
-        $array["code"] = $code;
-        $array["data"] = json_encode($data);
-        array_push($this->requests_results, $array);
+    private function storeRequestResults(int $code, array $data): void
+    {
+        $array['code'] = $code;
+        $array['data'] = json_encode($data);
+        $this->requests_results[] = $array;
     }
 }

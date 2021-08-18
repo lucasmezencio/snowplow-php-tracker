@@ -11,7 +11,7 @@
 
     Unless required by applicable law or agreed to in writing,
     software distributed under the Apache License Version 2.0 is distributed on
-    an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either
+    an 'AS IS' BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either
     express or implied. See the Apache License Version 2.0 for the specific
     language governing permissions and limitations there under.
 
@@ -29,49 +29,70 @@ use PHPUnit\Framework\TestCase;
 /**
  * Tests the creation of all the emitters.
  */
-class EmitterTest extends TestCase {
+class EmitterTest extends TestCase
+{
 
-    public function testCurlEmitterInit() {
-        $emitter = new CurlEmitter("collecter.acme.au", false, "GET", 1, false);
-
-        // Asserts
-        $this->assertNotNull($emitter);
-    }
-
-    public function testSyncEmitterInit() {
-        $emitter = new SyncEmitter("collecter.acme.au", "http", "GET", 1, false);
+    /**
+     * @throws ErrorException
+     */
+    public function testCurlEmitterInit(): void
+    {
+        $emitter = new CurlEmitter('collector.acme.au', null, 'GET', 1, false);
 
         // Asserts
         $this->assertNotNull($emitter);
     }
 
-    public function testSocketEmitterInit() {
-        $emitter = new SocketEmitter("collecter.acme.au", NULL, "GET", NULL, NULL, false);
+    public function testSyncEmitterInit(): void
+    {
+        $emitter = new SyncEmitter('collecter.acme.au', 'http', 'GET', 1, false);
 
         // Asserts
         $this->assertNotNull($emitter);
     }
 
-    public function testFileEmitterInit() {
-        $emitter = new FileEmitter("collecter.acme.au", false, "GET", 1, 15, 1);
+    public function testSocketEmitterInit(): void
+    {
+        $emitter = new SocketEmitter('collecter.acme.au', null, 'GET', null, null, false);
 
         // Asserts
         $this->assertNotNull($emitter);
     }
 
-    public function testReturnFunctions() {
-        $emitter = new SyncEmitter("collecter.acme.au", "http", "GET", 10, false);
-        $emitter->addEvent(array("something" => "something"));
-        $payload = array();
+    /**
+     * @throws ErrorException
+     */
+    public function testFileEmitterInit(): void
+    {
+        $emitter = new FileEmitter('collecter.acme.au', null, 'GET', 1, 15, 1);
+
+        // Asserts
+        $this->assertNotNull($emitter);
+    }
+
+    /**
+     * @throws ErrorException
+     */
+    public function testReturnFunctions(): void
+    {
+        $emitter = new SyncEmitter('collecter.acme.au', 'http', 'GET', 10, false);
+        $emitter->addEvent(['something' => 'something']);
+        $payload = [];
         $payload_updated = $emitter->updateStm($payload);
 
-        $this->assertEquals(false,
-            $emitter->returnDebugMode());
-        $this->assertEquals(NULL,
-            $emitter->returnDebugFile());
-        $this->assertEquals(1,
-            count($emitter->returnBuffer()));
-        $this->assertArrayHasKey("stm", $payload_updated);
-        $this->assertTrue(is_numeric($payload_updated["stm"]));
+        $this->assertEquals(
+            false,
+            $emitter->returnDebugMode()
+        );
+        $this->assertEquals(
+            null,
+            $emitter->returnDebugFile()
+        );
+        $this->assertCount(
+            1,
+            $emitter->returnBuffer()
+        );
+        $this->assertArrayHasKey('stm', $payload_updated);
+        $this->assertIsNumeric($payload_updated['stm']);
     }
 }

@@ -23,7 +23,8 @@
 
 namespace Snowplow\Tracker;
 
-class Subject extends Constants {
+class Subject extends Constants
+{
 
     // Subject Parameters
 
@@ -32,8 +33,9 @@ class Subject extends Constants {
     /**
      * Constructs an array in which subject parameters are stored
      */
-    public function __construct() {
-        $this->tracker_settings = array("p" => self::DEFAULT_PLATFORM);
+    public function __construct()
+    {
+        $this->tracker_settings = ['p' => self::DEFAULT_PLATFORM];
     }
 
     /**
@@ -41,7 +43,8 @@ class Subject extends Constants {
      *
      * @return array
      */
-    public function getSubject() {
+    public function getSubject(): array
+    {
         return $this->tracker_settings;
     }
 
@@ -52,8 +55,9 @@ class Subject extends Constants {
      *
      * @param string $platform
      */
-    public function setPlatform($platform) {
-        $this->tracker_settings["p"] = $platform;
+    public function setPlatform(string $platform): void
+    {
+        $this->tracker_settings['p'] = $platform;
     }
 
     /**
@@ -61,8 +65,9 @@ class Subject extends Constants {
      *
      * @param string $userId
      */
-    public function setUserId($userId) {
-        $this->tracker_settings["uid"] = $userId;
+    public function setUserId(string $userId): void
+    {
+        $this->tracker_settings['uid'] = $userId;
     }
 
     /**
@@ -71,8 +76,9 @@ class Subject extends Constants {
      * @param int $width
      * @param int $height
      */
-    public function setScreenResolution($width, $height) {
-        $this->tracker_settings["res"] = $width."x".$height;
+    public function setScreenResolution(int $width, int $height): void
+    {
+        $this->tracker_settings['res'] = "{$width}x{$height}";
     }
 
     /**
@@ -81,8 +87,9 @@ class Subject extends Constants {
      * @param int $width
      * @param int $height
      */
-    public function setViewPort($width, $height) {
-        $this->tracker_settings["vp"] = $width."x".$height;
+    public function setViewPort(int $width, int $height): void
+    {
+        $this->tracker_settings['vp'] = "{$width}x{$height}";
     }
 
     /**
@@ -90,8 +97,9 @@ class Subject extends Constants {
      *
      * @param int $depth
      */
-    public function setColorDepth($depth) {
-        $this->tracker_settings["cd"] = $depth;
+    public function setColorDepth(int $depth): void
+    {
+        $this->tracker_settings['cd'] = $depth;
     }
 
     /**
@@ -99,8 +107,9 @@ class Subject extends Constants {
      *
      * @param string $timezone
      */
-    public function setTimezone($timezone) {
-        $this->tracker_settings["tz"] = $timezone;
+    public function setTimezone(string $timezone): void
+    {
+        $this->tracker_settings['tz'] = $timezone;
     }
 
     /**
@@ -108,8 +117,9 @@ class Subject extends Constants {
      *
      * @param string $language
      */
-    public function setLanguage($language) {
-        $this->tracker_settings["lang"] = $language;
+    public function setLanguage(string $language): void
+    {
+        $this->tracker_settings['lang'] = $language;
     }
 
     /**
@@ -117,8 +127,9 @@ class Subject extends Constants {
      *
      * @param string $ipAddress
      */
-    public function setIpAddress($ipAddress) {
-        $this->tracker_settings["ip"] = $ipAddress;
+    public function setIpAddress(string $ipAddress): void
+    {
+        $this->tracker_settings['ip'] = $ipAddress;
     }
 
     /**
@@ -126,8 +137,9 @@ class Subject extends Constants {
      *
      * @param string $useragent
      */
-    public function setUseragent($useragent) {
-        $this->tracker_settings["ua"] = $useragent;
+    public function setUseragent(string $useragent): void
+    {
+        $this->tracker_settings['ua'] = $useragent;
     }
 
     /**
@@ -135,8 +147,9 @@ class Subject extends Constants {
      *
      * @param string $networkUserId
      */
-    public function setNetworkUserId($networkUserId) {
-        $this->tracker_settings["tnuid"] = $networkUserId;
+    public function setNetworkUserId(string $networkUserId): void
+    {
+        $this->tracker_settings['tnuid'] = $networkUserId;
     }
 
     /**
@@ -144,8 +157,9 @@ class Subject extends Constants {
      *
      * @param string $domainUserId
      */
-    public function setDomainUserId($domainUserId) {
-        $this->tracker_settings["duid"] = $domainUserId;
+    public function setDomainUserId(string $domainUserId): void
+    {
+        $this->tracker_settings['duid'] = $domainUserId;
     }
 
     /**
@@ -153,8 +167,9 @@ class Subject extends Constants {
      *
      * @param string $refr
      */
-    public function setRefr($refr) {
-        $this->tracker_settings["refr"] = $refr;
+    public function setRefr(string $refr): void
+    {
+        $this->tracker_settings['refr'] = $refr;
     }
 
     /**
@@ -162,13 +177,15 @@ class Subject extends Constants {
      *
      * @param string $pageUrl
      */
-    public function setPageUrl($pageUrl) {
-        $this->tracker_settings["url"] = $pageUrl;
+    public function setPageUrl(string $pageUrl): void
+    {
+        $this->tracker_settings['url'] = $pageUrl;
     }
 
     // Subject Return Functions
 
-    public function returnTrackerSettings() {
+    public function returnTrackerSettings(): array
+    {
         return $this->tracker_settings;
     }
 }

@@ -25,8 +25,8 @@ namespace Snowplow\Tracker;
 
 use Ramsey\Uuid\Uuid;
 
-class Tracker extends Constants {
-
+class Tracker extends Constants
+{
     // Tracker Parameters
 
     private $subject;
@@ -41,31 +41,34 @@ class Tracker extends Constants {
      * @param subject $subject - Subject object, contains extra information which is parcelled with the event
      * @param string|null $namespace
      * @param string|null $app_id
-     * @param bool $encode_base64 - Boolean stating whether or not to encode certain values as base64
+     * @param bool|null $encode_base64 - Boolean stating whether or not to encode certain values as base64
      */
-    public function __construct($emitter, Subject $subject, $namespace = NULL, $app_id = NULL,
-                                $encode_base64 = NULL) {
-
+    public function __construct(
+        $emitter,
+        Subject $subject,
+        string $namespace = null,
+        string $app_id = null,
+        bool $encode_base64 = null
+    ) {
         // Set the emitter or emitters for the tracker
         if (is_array($emitter)) {
             $this->emitters = $emitter;
-        }
-        else {
-            $this->emitters = array($emitter);
+        } else {
+            $this->emitters = [$emitter];
         }
 
         // Set the subject for the tracker
         $this->subject = $subject;
 
         // Set truth for base_64 encoding
-        $this->encode_base64 = $encode_base64 !== NULL ? $encode_base64 : self::DEFAULT_BASE_64;
+        $this->encode_base64 = $encode_base64 !== null ? $encode_base64 : self::DEFAULT_BASE_64;
 
         // Tracker Event Parameters
-        $this->std_nv_pairs = array(
-            "tv"  => self::TRACKER_VERSION,
-            "tna" => $namespace,
-            "aid" => $app_id
-        );
+        $this->std_nv_pairs = [
+            'tv' => self::TRACKER_VERSION,
+            'tna' => $namespace,
+            'aid' => $app_id
+        ];
     }
 
     // Setter Functions
@@ -75,7 +78,8 @@ class Tracker extends Constants {
      *
      * @param subject $subject
      */
-    public function updateSubject(Subject $subject) {
+    public function updateSubject(Subject $subject): void
+    {
         $this->subject = $subject;
     }
 
@@ -84,8 +88,9 @@ class Tracker extends Constants {
      *
      * @param emitter $emitter
      */
-    public function addEmitter($emitter) {
-        array_push($this->emitters, $emitter);
+    public function addEmitter(emitter $emitter): void
+    {
+        $this->emitters[] = $emitter;
     }
 
     // Emitter Send Functions
@@ -95,9 +100,13 @@ class Tracker extends Constants {
      * Converts all values within the array into string values before sending
      *
      * @param array $payload
+     *
+     * @throws \ErrorException
      */
-    private function sendRequest($payload) {
+    private function sendRequest(array $payload): void
+    {
         $final_payload = $this->returnArrayStringify('strval', $payload);
+
         foreach ($this->emitters as $emitter) {
             $emitter->addEvent($final_payload);
         }
@@ -106,8 +115,11 @@ class Tracker extends Constants {
     /**
      * Will force send all events in the emitter(s) buffers
      * This happens irrespective of whether or not buffer limit has been reached
+     *
+     * @throws \ErrorException
      */
-    public function flushEmitters() {
+    public function flushEmitters(): void
+    {
         foreach ($this->emitters as $emitter) {
             $emitter->forceFlush();
         }
@@ -118,8 +130,9 @@ class Tracker extends Constants {
      *
      * @param bool $deleteLocal - Will also delete all local information stored.
      */
-    public function turnOffDebug($deleteLocal = false) {
-        foreach($this->emitters as $emitter) {
+    public function turnOffDebug(bool $deleteLocal = false): void
+    {
+        foreach ($this->emitters as $emitter) {
             $emitter->turnOffDebug($deleteLocal);
         }
     }
@@ -132,16 +145,24 @@ class Tracker extends Constants {
      *
      * @param Payload $ep - Payload object, contains an array of nv pairs
      * @param array|null $context - Event context array, contains extra information on the event
+     *
      * @return Payload
      */
-    private function returnCompletePayload(Payload $ep, $context = NULL) {
-        if ($context != NULL) {
-            $context_envelope = array("schema" => self::CONTEXT_SCHEMA, "data" => $context);
-            $ep->addJson($context_envelope, $this->encode_base64, "cx", "co");
+    private function returnCompletePayload(Payload $ep, array $context = null): Payload
+    {
+        if ($context !== null) {
+            $context_envelope = [
+                'schema' => self::CONTEXT_SCHEMA,
+                'data' => $context,
+            ];
+
+            $ep->addJson($context_envelope, $this->encode_base64, 'cx', 'co');
         }
+
         $ep->addDict($this->std_nv_pairs);
         $ep->addDict($this->subject->getSubject());
-        $ep->add("eid", $this->generateUuid());
+        $ep->add('eid', $this->generateUuid());
+
         return $ep;
     }
 
@@ -150,7 +171,8 @@ class Tracker extends Constants {
      *
      * @return string - Unique String based on the time of creation
      */
-    private function generateUuid() {
+    private function generateUuid(): string
+    {
         return Uuid::uuid4()->toString();
     }
 
@@ -160,13 +182,17 @@ class Tracker extends Constants {
      *
      * @param string $func - Defines what will happen to the array value (strval)
      * @param array $arr - Array of name value pairs
+     *
      * @return array - Returns stringified array
      */
-    private function returnArrayStringify($func, $arr) {
-        $ret = array();
+    private function returnArrayStringify(string $func, array $arr): array
+    {
+        $ret = [];
+
         foreach ($arr as $key => $val) {
             $ret[$key] = (is_array($val)) ? $this->returnArrayStringify($func, $val) : $func($val);
         }
+
         return $ret;
     }
 
@@ -177,8 +203,11 @@ class Tracker extends Constants {
      *
      * @param Payload $ep - Payload object as parameter
      * @param array|null $context - Context to be added to the event
+     *
+     * @throws \ErrorException
      */
-    private function track(Payload $ep, $context = NULL) {
+    private function track(Payload $ep, array $context = null): void
+    {
         $ep = $this->returnCompletePayload($ep, $context);
         $this->sendRequest($ep->get());
     }
@@ -191,13 +220,21 @@ class Tracker extends Constants {
      * @param string|null $referrer - Referral Page
      * @param array|null $context - Event Context
      * @param int|null $timestamp_in_ms - Event Timestamp in milliseconds
+     *
+     * @throws \ErrorException
      */
-    public function trackPageView($page_url, $page_title = NULL, $referrer = NULL, $context = NULL, $timestamp_in_ms = NULL) {
+    public function trackPageView(
+        string $page_url,
+        string $page_title = null,
+        string $referrer = null,
+        array $context = null,
+        int $timestamp_in_ms = null
+    ): void {
         $ep = new Payload($timestamp_in_ms);
-        $ep->add("e", "pv");
-        $ep->add("url", $page_url);
-        $ep->add("page", $page_title);
-        $ep->add("refr", $referrer);
+        $ep->add('e', 'pv');
+        $ep->add('url', $page_url);
+        $ep->add('page', $page_title);
+        $ep->add('refr', $referrer);
         $this->track($ep, $context);
     }
 
@@ -211,16 +248,25 @@ class Tracker extends Constants {
      * @param int|float|null $value - A value associated with the user action
      * @param array|null $context - Event Context
      * @param int|null $timestamp_in_ms - Event Timestamp in milliseconds
+     *
+     * @throws \ErrorException
      */
-    public function trackStructEvent($category, $action, $label = NULL, $property = NULL, $value = NULL,
-                                     $context = NULL, $timestamp_in_ms = NULL) {
+    public function trackStructEvent(
+        string $category,
+        string $action,
+        string $label = null,
+        string $property = null,
+        $value = null,
+        array $context = null,
+        int $timestamp_in_ms = null
+    ): void {
         $ep = new Payload($timestamp_in_ms);
-        $ep->add("e", "se");
-        $ep->add("se_ca", $category);
-        $ep->add("se_ac", $action);
-        $ep->add("se_la", $label);
-        $ep->add("se_pr", $property);
-        $ep->add("se_va", $value);
+        $ep->add('e', 'se');
+        $ep->add('se_ca', $category);
+        $ep->add('se_ac', $action);
+        $ep->add('se_la', $label);
+        $ep->add('se_pr', $property);
+        $ep->add('se_va', $value);
         $this->track($ep, $context);
     }
 
@@ -232,12 +278,18 @@ class Tracker extends Constants {
      *                           - A "schema" field identifying the schema against which the data is validated
      * @param array|null $context - Event Context
      * @param int|null $timestamp_in_ms - Event Timestamp in milliseconds
+     *
+     * @throws \ErrorException
      */
-    public function trackUnstructEvent($event_json, $context = NULL, $timestamp_in_ms = NULL) {
-        $envelope = array("schema" => self::UNSTRUCT_EVENT_SCHEMA, "data" => $event_json);
+    public function trackUnstructEvent(array $event_json, array $context = null, int $timestamp_in_ms = null): void
+    {
+        $envelope = [
+            'schema' => self::UNSTRUCT_EVENT_SCHEMA,
+            'data' => $event_json,
+        ];
         $ep = new Payload($timestamp_in_ms);
-        $ep->add("e", "ue");
-        $ep->addJson($envelope, $this->encode_base64, "ue_px", "ue_pr");
+        $ep->add('e', 'ue');
+        $ep->addJson($envelope, $this->encode_base64, 'ue_px', 'ue_pr');
         $this->track($ep, $context);
     }
 
@@ -248,16 +300,30 @@ class Tracker extends Constants {
      * @param string|null $id - Event Screen Unique ID
      * @param array|null $context - Event Context
      * @param int|null $timestamp_in_ms - Event Timestamp in milliseconds
+     *
+     * @throws \ErrorException
      */
-    public function trackScreenView($name = NULL, $id = NULL, $context = NULL, $timestamp_in_ms = NULL) {
-        $screen_view_properties = array();
-        if ($name != NULL) {
-            $screen_view_properties["name"] = $name;
+    public function trackScreenView(
+        string $name = null,
+        string $id = null,
+        array $context = null,
+        int $timestamp_in_ms = null
+    ): void {
+        $screen_view_properties = [];
+
+        if ($name !== null) {
+            $screen_view_properties['name'] = $name;
         }
-        if ($id != NULL) {
-            $screen_view_properties["id"] = $id;
+
+        if ($id !== null) {
+            $screen_view_properties['id'] = $id;
         }
-        $ep_json = array("schema" => self::SCREEN_VIEW_SCHEMA, "data" => $screen_view_properties);
+
+        $ep_json = [
+            'schema' => self::SCREEN_VIEW_SCHEMA,
+            'data' => $screen_view_properties,
+        ];
+
         $this->trackUnstructEvent($ep_json, $context, $timestamp_in_ms);
     }
 
@@ -276,28 +342,48 @@ class Tracker extends Constants {
      * @param array $items - An array of items which make up the transaction
      * @param array|null $context - Event Context
      * @param int|null $timestamp_in_ms - Event timestamp
+     *
+     * @throws \ErrorException
      */
-    public function trackEcommerceTransaction($order_id, $total_value, $currency = NULL, $affiliation = NULL,
-                                              $tax_value = NULL, $shipping = NULL, $city = NULL, $state = NULL,
-                                              $country = NULL, $items = array(), $context = NULL, $timestamp_in_ms = NULL) {
+    public function trackEcommerceTransaction(
+        string $order_id,
+        $total_value,
+        string $currency = null,
+        string $affiliation = null,
+        $tax_value = null,
+        $shipping = null,
+        string $city = null,
+        string $state = null,
+        string $country = null,
+        array $items = [],
+        array $context = null,
+        int $timestamp_in_ms = null
+    ): void {
         $ep = new Payload($timestamp_in_ms);
-        $ep->add("e", "tr");
-        $ep->add("tr_id", $order_id);
-        $ep->add("tr_tt", $total_value);
-        $ep->add("tr_cu", $currency);
-        $ep->add("tr_af", $affiliation);
-        $ep->add("tr_tx", $tax_value);
-        $ep->add("tr_sh", $shipping);
-        $ep->add("tr_ci", $city);
-        $ep->add("tr_st", $state);
-        $ep->add("tr_co", $country);
-        $this->track($ep, $context);
-
-        // Go through each item in the transaction and create an event for it.
+        $ep->add('e', 'tr');
+        $ep->add('tr_id', $order_id);
+        $ep->add('tr_tt', $total_value);
+        $ep->add('tr_cu', $currency);
+        $ep->add('tr_af', $affiliation);
+        $ep->add('tr_tx', $tax_value);
+        $ep->add('tr_sh', $shipping);
+        $ep->add('tr_ci', $city);
+        $ep->add('tr_st', $state);
+        $ep->add('tr_co', $country);
+        $this->track($ep, $context); // Go through each item in the transaction and create an event for it.
 
         foreach ($items as $item) {
-            $this->trackEcommerceTransactionItems($order_id, $item["sku"], $item["price"], $item["quantity"],
-                $item["name"], $item["category"], $currency, $context, $timestamp_in_ms);
+            $this->trackEcommerceTransactionItems(
+                $order_id,
+                $item['sku'],
+                $item['price'],
+                $item['quantity'],
+                $item['name'],
+                $item['category'],
+                $currency,
+                $context,
+                $timestamp_in_ms
+            );
         }
     }
 
@@ -313,18 +399,29 @@ class Tracker extends Constants {
      * @param string|null $currency - Currency, inherited from trackEcommerceTransaction
      * @param array|null $context - Event Context
      * @param int|null $timestamp_in_ms - Event Timestamp in milliseconds
+     *
+     * @throws \ErrorException
      */
-    private function trackEcommerceTransactionItems($order_id, $sku, $price, $quantity, $name = NULL, $category = NULL,
-                                                    $currency = NULL, $context = NULL, $timestamp_in_ms = NULL) {
+    private function trackEcommerceTransactionItems(
+        string $order_id,
+        string $sku,
+        $price,
+        int $quantity,
+        string $name = null,
+        string $category = null,
+        string $currency = null,
+        array $context = null,
+        int $timestamp_in_ms = null
+    ): void {
         $ep = new Payload($timestamp_in_ms);
-        $ep->add("e", "ti");
-        $ep->add("ti_id", $order_id);
-        $ep->add("ti_pr", $price);
-        $ep->add("ti_sk", $sku);
-        $ep->add("ti_qu", $quantity);
-        $ep->add("ti_nm", $name);
-        $ep->add("ti_ca", $category);
-        $ep->add("ti_cu", $currency);
+        $ep->add('e', 'ti');
+        $ep->add('ti_id', $order_id);
+        $ep->add('ti_pr', $price);
+        $ep->add('ti_sk', $sku);
+        $ep->add('ti_qu', $quantity);
+        $ep->add('ti_nm', $name);
+        $ep->add('ti_ca', $category);
+        $ep->add('ti_cu', $currency);
         $this->track($ep, $context);
     }
 
@@ -335,7 +432,8 @@ class Tracker extends Constants {
      *
      * @return Subject
      */
-    public function returnSubject() {
+    public function returnSubject(): Subject
+    {
         return $this->subject;
     }
 
@@ -344,7 +442,8 @@ class Tracker extends Constants {
      *
      * @return array
      */
-    public function returnEmitters() {
+    public function returnEmitters(): array
+    {
         return $this->emitters;
     }
 
@@ -353,7 +452,8 @@ class Tracker extends Constants {
      *
      * @return bool
      */
-    public function returnEncodeBase64() {
+    public function returnEncodeBase64(): bool
+    {
         return $this->encode_base64;
     }
 
@@ -362,7 +462,8 @@ class Tracker extends Constants {
      *
      * @return array
      */
-    public function returnStdNvPairs() {
+    public function returnStdNvPairs(): array
+    {
         return $this->std_nv_pairs;
     }
 }

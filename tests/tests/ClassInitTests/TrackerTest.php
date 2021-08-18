@@ -11,7 +11,7 @@
 
     Unless required by applicable law or agreed to in writing,
     software distributed under the Apache License Version 2.0 is distributed on
-    an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either
+    an 'AS IS' BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either
     express or implied. See the Apache License Version 2.0 for the specific
     language governing permissions and limitations there under.
 
@@ -20,6 +20,7 @@
     License: Apache License Version 2.0
 */
 
+use Snowplow\Tracker\Emitter;
 use Snowplow\Tracker\Tracker;
 use Snowplow\Tracker\Emitters\SyncEmitter;
 use Snowplow\Tracker\Subject;
@@ -33,8 +34,8 @@ use PHPUnit\Framework\TestCase;
  * - Changing the Tracker's subject
  * - Changing Subject information from the Tracker
  */
-class TrackerTest extends TestCase {
-
+class TrackerTest extends TestCase
+{
     /** @var SyncEmitter */
     private $e1;
 
@@ -46,34 +47,41 @@ class TrackerTest extends TestCase {
 
     // Helper Functions
 
-    protected function setUp(): void {
+    protected function setUp(): void
+    {
         // Make multiple emitters
-        $this->e1 = $this->getSyncEmitter("GET");
-        $this->e2 = $this->getSyncEmitter("POST");
+        $this->e1 = $this->getSyncEmitter('GET');
+        $this->e2 = $this->getSyncEmitter('POST');
 
         // Create a Tracker Subject
         $this->s1 = new Subject();
     }
 
-    private function getSyncEmitter($type) {
-        return new SyncEmitter("collector.acme.au", "http", $type, 2, true);
+    private function getSyncEmitter($type): SyncEmitter
+    {
+        return new SyncEmitter('collector.acme.au', 'http', $type, 2, true);
     }
 
     // Tests
 
-    public function testTrackerInit() {
-        $tracker = new Tracker($this->e1, $this->s1, "namespace", "app_id", false);
+    public function testTrackerInit(): void
+    {
+        $tracker = new Tracker($this->e1, $this->s1, 'namespace', 'app_id', false);
 
         // Asserts
         $this->assertEquals($this->s1, $tracker->returnSubject());
         $this->assertEquals(false, $tracker->returnEncodeBase64());
-        $this->assertEquals(array("tv" => "php-0.4.0", "tna" => "namespace", "aid" => "app_id"), $tracker->returnStdNvPairs());
+        $this->assertEquals(
+            ['tv' => 'php-0.4.0', 'tna' => 'namespace', 'aid' => 'app_id'],
+            $tracker->returnStdNvPairs()
+        );
         $tracker->turnOffDebug(true);
     }
 
-    public function testTrackerInitEmitterArray() {
-        $emitters = array($this->e1, $this->e2);
-        $tracker = new Tracker($emitters, $this->s1, "namespace", "app_id", false);
+    public function testTrackerInitEmitterArray(): void
+    {
+        $emitters = [$this->e1, $this->e2];
+        $tracker = new Tracker($emitters, $this->s1, 'namespace', 'app_id', false);
 
         // Asserts
         $emitters = $tracker->returnEmitters();
@@ -82,58 +90,65 @@ class TrackerTest extends TestCase {
         $tracker->turnOffDebug(true);
     }
 
-    public function testTrackerChangeSubject() {
+    public function testTrackerChangeSubject(): void
+    {
         $subject1 = new Subject();
-        $subject1->setUserID("user_id_1");
+        $subject1->setUserID('user_id_1');
         $subject2 = new Subject();
-        $subject2->setUserID("user_id_2");
-        $tracker = new Tracker($this->e1, $subject1, "namespace", "app_id", false);
+        $subject2->setUserID('user_id_2');
+        $tracker = new Tracker($this->e1, $subject1, 'namespace', 'app_id', false);
         $uid = $tracker->returnSubject()->getSubject();
 
         // Assert - 1
-        $this->assertEquals("user_id_1", $uid["uid"]);
+        $this->assertEquals('user_id_1', $uid['uid']);
 
         // Change...
         $tracker->updateSubject($subject2);
         $uid = $tracker->returnSubject()->getSubject();
 
         // Assert - 2
-        $this->assertEquals("user_id_2", $uid["uid"]);
+        $this->assertEquals('user_id_2', $uid['uid']);
 
         // Change a facet of the new subject...
-        $tracker->returnSubject()->setIpAddress("127.10.0.1");
+        $tracker->returnSubject()->setIpAddress('127.10.0.1');
         $uid = $tracker->returnSubject()->getSubject();
 
         // Assert - 3
-        $this->assertEquals("127.10.0.1", $uid["ip"]);
+        $this->assertEquals('127.10.0.1', $uid['ip']);
         $tracker->turnOffDebug(true);
     }
 
-    public function testTrackerAddEmitterAfter() {
-        $tracker = new Tracker($this->e1, $this->s1, "namespace", "app_id", false);
+    public function testTrackerAddEmitterAfter(): void
+    {
+        $tracker = new Tracker($this->e1, $this->s1, 'namespace', 'app_id', false);
         $tracker->addEmitter($this->e2);
 
         // Assert
-        $this->assertEquals(2, count($tracker->returnEmitters()));
+        $this->assertCount(2, $tracker->returnEmitters());
         $tracker->turnOffDebug(true);
     }
 
-    public function testEventIdIsProperlyGenerated()
+    /**
+     * @throws ErrorException
+     */
+    public function testEventIdIsProperlyGenerated(): void
     {
-        $emitter = $this->getMockBuilder('Snowplow\Tracker\Emitter')->getMock();
+        $emitter = $this->getMockBuilder(Emitter::class)->getMock();
 
         $test = $this;
         $emitter->expects($this->once())
             ->method('addEvent')
-            ->with($this->callback(function ($a) use($test) {
-                $test->assertArrayHasKey('eid', $a);
-                $test->assertRegExp('/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/', $a['eid']);
+            ->with(
+                $this->callback(function ($a) use ($test) {
+                    $test->assertArrayHasKey('eid', $a);
+                    $test->assertRegExp('/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/', $a['eid']);
 
-                return true;
-            }));
+                    return true;
+                })
+            );
 
-        $tracker = new Tracker($this->e1, $this->s1, "namespace", "app_id", false);
+        $tracker = new Tracker($this->e1, $this->s1, 'namespace', 'app_id', false);
         $tracker->addEmitter($emitter);
-        $tracker->trackPageView("http:/example.com");
+        $tracker->trackPageView('http:/example.com');
     }
 }

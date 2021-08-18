@@ -1,7 +1,8 @@
 {
   "port": 4545,
   "protocol": "http",
-  "stubs": [{
+  "stubs": [
+    {
       "responses": [
         {
           "is": {
@@ -10,62 +11,70 @@
           }
         }
       ],
-      "predicates": [{
-        "and": [
-          {
-            "contains": {
-              "path": "/com.snowplowanalytics.snowplow/tp2",
-              "method": "POST",
-              "query": {},
-              "headers": {
-                "Content-Type": "application/json; charset=utf-8"
+      "predicates": [
+        {
+          "and": [
+            {
+              "contains": {
+                "path": "/com.snowplowanalytics.snowplow/tp2",
+                "method": "POST",
+                "query": {},
+                "headers": {
+                  "Content-Type": "application/json; charset=utf-8"
+                }
+              }
+            },
+            {
+              "exists": {
+                "body": true
               }
             }
-          },
-          {
-            "exists": {
-              "body": true
-            }
-          }
-        ]
-      }]
+          ]
+        }
+      ]
     },
     {
-      "responses": [{ 
-        "is": {
-          "statusCode": 200,
-          "body": "Successful Snowplow GET Request"
+      "responses": [
+        {
+          "is": {
+            "statusCode": 200,
+            "body": "Successful Snowplow GET Request"
+          }
         }
-      }],
-      "predicates": [{
-        "and": [
-          {
-            "contains": {
-              "path": "/i",
-              "method": "GET",
-              "body": ""
-            }
-          },
-          {
-            "exists": {
-              "query": {
-                "e": true,
-                "dtm": true,
-                "p": true,
-                "eid": true,
-                "tv": true
+      ],
+      "predicates": [
+        {
+          "and": [
+            {
+              "contains": {
+                "path": "/i",
+                "method": "GET",
+                "body": ""
+              }
+            },
+            {
+              "exists": {
+                "query": {
+                  "e": true,
+                  "dtm": true,
+                  "p": true,
+                  "eid": true,
+                  "tv": true
+                }
               }
             }
-          }
-        ]
-      }]
+          ]
+        }
+      ]
     },
     {
-      "responses": [{ 
-        "is": { 
-          "statusCode": 404 
+      "responses": [
+        {
+          "is": {
+            "statusCode": 404
+          }
         }
-      }]
+      ]
     }
   ]
 }

@@ -11,7 +11,7 @@
 
     Unless required by applicable law or agreed to in writing,
     software distributed under the Apache License Version 2.0 is distributed on
-    an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either
+    an 'AS IS' BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either
     express or implied. See the Apache License Version 2.0 for the specific
     language governing permissions and limitations there under.
 
@@ -28,30 +28,41 @@ use PHPUnit\Framework\TestCase;
 /**
  * Tests the functionality of the File emitter
  */
-class FileEmitterTest extends TestCase {
+class FileEmitterTest extends TestCase
+{
 
     // Helper Functions & Values
 
-    private $uri = "localhost:4545";
+    private $uri = 'localhost:4545';
 
-    private function returnTracker($type) {
+    private function returnTracker($type): Tracker
+    {
         $subject = new Subject();
         $emitter = $this->returnFileEmitter($type);
-        return new Tracker($emitter, $subject, NULL, NULL, true);
+        return new Tracker($emitter, $subject, null, null, true);
     }
 
-    private function returnFileEmitter($type) {
-        return new FileEmitter($this->uri, false, $type, 3, 3, 100);
+    /**
+     * @throws ErrorException
+     */
+    private function returnFileEmitter($type): FileEmitter
+    {
+        return new FileEmitter($this->uri, null, $type, 3, 3, 100);
     }
 
     // Tests
 
-    public function testFilePostForceFlush() {
-        $tracker = $this->returnTracker("POST", false);
-        $tracker->returnSubject()->setNetworkUserId("network-id");
+    /**
+     * @throws ErrorException
+     */
+    public function testFilePostForceFlush(): void
+    {
+        $tracker = $this->returnTracker('POST', false);
+        $tracker->returnSubject()->setNetworkUserId('network-id');
         $tracker->flushEmitters();
+
         for ($i = 0; $i < 1; $i++) {
-            $tracker->trackPageView("www.example.com", "example", "www.referrer.com");
+            $tracker->trackPageView('www.example.com', 'example', 'www.referrer.com');
         }
 
         $tracker->flushEmitters();
@@ -61,12 +72,18 @@ class FileEmitterTest extends TestCase {
         }
     }
 
-    public function testFileGetForceFlush() {
-        $tracker = $this->returnTracker("GET", false);
-        $tracker->returnSubject()->setNetworkUserId("network-id");
+    /**
+     * @throws ErrorException
+     */
+    public function testFileGetForceFlush(): void
+    {
+        $tracker = $this->returnTracker('GET', false);
+        $tracker->returnSubject()->setNetworkUserId('network-id');
+
         for ($i = 0; $i < 10; $i++) {
-            $tracker->trackPageView("www.example.com", "example", "www.referrer.com");
+            $tracker->trackPageView('www.example.com', 'example', 'www.referrer.com');
         }
+
         $tracker->flushEmitters();
 
         foreach ($tracker->returnEmitters() as $emitter) {
@@ -79,12 +96,18 @@ class FileEmitterTest extends TestCase {
         $tracker->turnOffDebug(true);
     }
 
-    public function testFilePost() {
-        $tracker = $this->returnTracker("POST", false);
-        $tracker->returnSubject()->setNetworkUserId("network-id");
+    /**
+     * @throws ErrorException
+     */
+    public function testFilePost(): void
+    {
+        $tracker = $this->returnTracker('POST', false);
+        $tracker->returnSubject()->setNetworkUserId('network-id');
+
         for ($i = 0; $i < 1000; $i++) {
-            $tracker->trackPageView("www.example.com", "example", "www.referrer.com");
+            $tracker->trackPageView('www.example.com', 'example', 'www.referrer.com');
         }
+
         $tracker->flushEmitters();
 
         foreach ($tracker->returnEmitters() as $emitter) {
@@ -92,33 +115,49 @@ class FileEmitterTest extends TestCase {
         }
     }
 
-    public function testBadType() {
-        $tracker = $this->returnTracker("POSTS", false);
+    public function testBadType(): void
+    {
+        $tracker = $this->returnTracker('POSTS', false);
         $emitters = $tracker->returnEmitters();
         $emitter = $emitters[0];
-        $this->assertEquals("http://".$this->uri."/com.snowplowanalytics.snowplow/tp2",
-            $emitter->returnUrl());
+        $this->assertEquals(
+            "http://{$this->uri}/com.snowplowanalytics.snowplow/tp2",
+            $emitter->returnUrl()
+        );
     }
 
-    public function testReturnFunctions() {
+    public function testReturnFunctions(): void
+    {
         $root_dir = dirname(dirname(dirname(__DIR__)));
-        $tracker = $this->returnTracker("POST", false);
+        $tracker = $this->returnTracker('POST', false);
         $emitters = $tracker->returnEmitters();
         $emitter = $emitters[0];
 
-        $this->assertEquals("http://".$this->uri."/com.snowplowanalytics.snowplow/tp2",
-            $emitter->returnUrl());
-        $this->assertEquals($root_dir."/temp/",
-            $emitter->returnLogDir());
-        $this->assertEquals(0,
-            $emitter->returnWorkerCount());
-        $this->assertEquals("POST",
-            $emitter->returnType());
+        $this->assertEquals(
+            "http://{$this->uri}/com.snowplowanalytics.snowplow/tp2",
+            $emitter->returnUrl()
+        );
+        $this->assertEquals(
+            "{$root_dir}/temp/",
+            $emitter->returnLogDir()
+        );
+        $this->assertEquals(
+            0,
+            $emitter->returnWorkerCount()
+        );
+        $this->assertEquals(
+            'POST',
+            $emitter->returnType()
+        );
 
         $paths = $emitter->returnWorkerPaths();
-        $this->assertEquals($root_dir."/temp/w0/",
-            $paths[0]);
-        $this->assertEquals($root_dir."/temp/w1/",
-            $paths[1]);
+        $this->assertEquals(
+            "{$root_dir}/temp/w0/",
+            $paths[0]
+        );
+        $this->assertEquals(
+            "{$root_dir}/temp/w1/",
+            $paths[1]
+        );
     }
 }

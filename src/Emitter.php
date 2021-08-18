@@ -22,14 +22,15 @@
 */
 
 namespace Snowplow\Tracker;
+
 use ErrorException;
 
-class Emitter extends Constants {
-
+class Emitter extends Constants
+{
     // Emitter Parameters
 
     private $buffer_size;
-    private $buffer = array();
+    private $buffer = [];
 
     // Debug Parameters
 
@@ -47,8 +48,11 @@ class Emitter extends Constants {
      * @param string $type
      * @param bool $debug
      * @param int $buffer_size
+     *
+     * @throws ErrorException
      */
-    public function setup($type, $debug, $buffer_size) {
+    public function setup(string $type, bool $debug, int $buffer_size): void
+    {
         $this->buffer_size = $buffer_size;
 
         // Set error handler to catch warnings
@@ -61,11 +65,10 @@ class Emitter extends Constants {
             if (self::DEBUG_LOG_FILES) {
                 if ($this->initDebug($type) !== true) {
                     $this->write_perms = false;
-                    print_r("Unable to create debug log files: invalid write permissions.");
+                    print_r('Unable to create debug log files: invalid write permissions.');
                 }
             }
-        }
-        else {
+        } else {
             $this->debug_mode = false;
         }
 
@@ -79,8 +82,11 @@ class Emitter extends Constants {
      * @param array $buffer - The array of events that are ready for sending
      * @param bool $curl_send - Boolean logic needed to ascertain whether or not
      *                          we are going to start the curl emitter
+     *
+     * @throws ErrorException
      */
-    private function flush($buffer, $curl_send = false) {
+    private function flush(array $buffer, bool $curl_send = false): void
+    {
         if (count($buffer) > 0) {
             $res = $this->send($buffer, $curl_send);
 
@@ -88,30 +94,36 @@ class Emitter extends Constants {
             $this->warning_handler();
 
             if (is_bool($res) && $res) {
-                $success_string = "Payload sent successfully\nPayload: ".json_encode($buffer)."\n\n";
+                $success_string = "Payload sent successfully\nPayload: " . json_encode($buffer) . "\n\n";
+
                 if ($this->debug_mode && self::DEBUG_LOG_FILES && $this->write_perms) {
                     if ($this->writeToFile($this->debug_file, $success_string) !== true) {
                         print_r($success_string);
+
                         $this->write_perms = false;
                     }
+                } else {
+                    if ($this->debug_mode) {
+                        print_r($success_string);
+                    }
                 }
-                else if ($this->debug_mode) {
-                    print_r($success_string);
-                }
-            }
-            else {
-                $error_string = $res."\nPayload: ".json_encode($buffer)."\n\n";
+            } else {
+                $error_string = $res . "\nPayload: " . json_encode($buffer) . "\n\n";
+
                 if ($this->debug_mode && self::DEBUG_LOG_FILES && $this->write_perms) {
                     if ($this->writeToFile($this->debug_file, $error_string) !== true) {
                         print_r($error_string);
+
                         $this->write_perms = false;
                     }
-                }
-                else if ($this->debug_mode) {
-                    print_r($error_string);
+                } else {
+                    if ($this->debug_mode) {
+                        print_r($error_string);
+                    }
                 }
             }
-            $this->buffer = array();
+
+            $this->buffer = [];
 
             // Restore error handler back to default
             restore_error_handler();
@@ -123,9 +135,12 @@ class Emitter extends Constants {
      * When buffer is full it flushes the buffer.
      *
      * @param array $final_payload - Takes the Trackers Payload as a parameter
+     *
+     * @throws ErrorException
      */
-    public function addEvent($final_payload) {
-        array_push($this->buffer, $final_payload);
+    public function addEvent(array $final_payload): void
+    {
+        $this->buffer[] = $final_payload;
         if (count($this->buffer) >= $this->buffer_size) {
             $this->flush($this->buffer);
         }
@@ -133,8 +148,11 @@ class Emitter extends Constants {
 
     /**
      * Sends all events in the buffer to the collector
+     *
+     * @throws ErrorException
      */
-    public function forceFlush() {
+    public function forceFlush(): void
+    {
         $this->flush($this->buffer, true);
     }
 
@@ -144,9 +162,9 @@ class Emitter extends Constants {
      *
      * @param bool $deleteLocal - Delete all local information
      */
-    public function debugSwitch($deleteLocal) {
+    public function debugSwitch(bool $deleteLocal): void
+    {
         if ($this->debug_mode === true) {
-
             // Turn off debug_mode
             $this->debug_mode = false;
 
@@ -167,17 +185,19 @@ class Emitter extends Constants {
      *
      * @param string $type - The type of request we will be making to the collector
      * @param string $uri - Collector URI
-     * @param string $protocol - What protocol we are using for the collector
+     * @param string|null $protocol - What protocol we are using for the collector
+     *
      * @return string
      */
-    public function getCollectorUrl($type, $uri, $protocol) {
-        $protocol = $protocol == NULL ? self::DEFAULT_PROTOCOL : $protocol;
-        if ($type == "POST") {
-            return $protocol."://".$uri.self::POST_PATH;
+    public function getCollectorUrl(string $type, string $uri, ?string $protocol = null): string
+    {
+        $protocol = $protocol === null ? self::DEFAULT_PROTOCOL : $protocol;
+
+        if ($type === 'POST') {
+            return "{$protocol}://{$uri}" . self::POST_PATH;
         }
-        else {
-            return $protocol."://".$uri.self::GET_PATH;
-        }
+
+        return "{$protocol}://{$uri}" . self::GET_PATH;
     }
 
     /**
@@ -187,11 +207,14 @@ class Emitter extends Constants {
      * - If there is an invalid type OR NULL it will always
      *   be the default type == POST
      */
-    public function getRequestType($type) {
+    public function getRequestType($type): string
+    {
         switch ($type) {
-            case "POST" : return $type;
-            case "GET"  : return $type;
-            default     : return self::DEFAULT_REQ_TYPE;
+            case 'GET':
+            case 'POST' :
+                return $type;
+            default:
+                return self::DEFAULT_REQ_TYPE;
         }
     }
 
@@ -200,13 +223,16 @@ class Emitter extends Constants {
      * not exists already.
      *
      * @param string $dir - The directory we want to make
+     *
      * @return bool|string - Boolean describing if the creation was a success
      */
-    public function makeDir($dir) {
+    public function makeDir(string $dir)
+    {
         try {
             if (!is_dir($dir)) {
                 mkdir($dir);
             }
+
             return true;
         } catch (ErrorException $e) {
             return $e->getMessage();
@@ -218,11 +244,13 @@ class Emitter extends Constants {
      * - If the file does not exist will attempt to make the file
      *
      * @param string $file_path - The path to the file we want to write to
+     *
      * @return string|resource - Either a file resource or a false boolean
      */
-    public function openFile($file_path) {
+    public function openFile(string $file_path)
+    {
         try {
-            return fopen($file_path, "w");
+            return fopen($file_path, 'wb');
         } catch (ErrorException $e) {
             return $e->getMessage();
         }
@@ -232,11 +260,14 @@ class Emitter extends Constants {
      * Attempts to close an open file resource
      *
      * @param resource $file_path - The path to the file we want to close
+     *
      * @return bool|string - Whether or not the close was a success
      */
-    public function closeFile($file_path) {
+    public function closeFile($file_path)
+    {
         try {
             fclose($file_path);
+
             return true;
         } catch (ErrorException $e) {
             return $e->getMessage();
@@ -248,11 +279,14 @@ class Emitter extends Constants {
      *
      * @param string $path_from - The path to the file we want to copy
      * @param string $path_to - The path which we want to copt the file to
+     *
      * @return bool|string - Whether or not the copy was a success
      */
-    public function copyFile($path_from, $path_to) {
+    public function copyFile(string $path_from, string $path_to)
+    {
         try {
             copy($path_from, $path_to);
+
             return true;
         } catch (ErrorException $e) {
             return $e->getMessage();
@@ -263,11 +297,14 @@ class Emitter extends Constants {
      * Attempts to delete a file
      *
      * @param string $file_path - The path of the file we want to delete
-     * @return
+     *
+     * @return bool|string
      */
-    public function deleteFile($file_path) {
+    public function deleteFile(string $file_path)
+    {
         try {
             unlink($file_path);
+
             return true;
         } catch (ErrorException $e) {
             return $e->getMessage();
@@ -281,9 +318,11 @@ class Emitter extends Constants {
      * @param string $content - The content we want to write into the file
      * @return bool|string - If the write was successful or not
      */
-    public function writeToFile($file_path, $content) {
+    public function writeToFile($file_path, string $content)
+    {
         try {
             fwrite($file_path, $content);
+
             return true;
         } catch (ErrorException $e) {
             return $e->getMessage();
@@ -297,7 +336,8 @@ class Emitter extends Constants {
      *
      * @return int
      */
-    public function returnBufferSize() {
+    public function returnBufferSize(): int
+    {
         return $this->buffer_size;
     }
 
@@ -306,7 +346,8 @@ class Emitter extends Constants {
      *
      * @return array
      */
-    public function returnBuffer() {
+    public function returnBuffer(): array
+    {
         return $this->buffer;
     }
 
@@ -315,7 +356,8 @@ class Emitter extends Constants {
      *
      * @return bool
      */
-    public function returnDebugMode() {
+    public function returnDebugMode(): bool
+    {
         return $this->debug_mode;
     }
 
@@ -324,7 +366,8 @@ class Emitter extends Constants {
      *
      * @return resource|null
      */
-    public function returnDebugFile() {
+    public function returnDebugFile()
+    {
         return $this->debug_file;
     }
 
@@ -332,10 +375,13 @@ class Emitter extends Constants {
      * Returns the event payload with current time as stm.
      *
      * @param array $payload
+     *
      * @return array - Updated event payload
      */
-    public function updateStm($payload) {
-        $payload["stm"] = strval(time() * 1000);
+    public function updateStm(array $payload): array
+    {
+        $payload['stm'] = (string)(time() * 1000);
+
         return $payload;
     }
 
@@ -343,10 +389,12 @@ class Emitter extends Constants {
      * Updates all events in buffer with current time as stm.
      *
      * @param array $buffer
+     *
      * @return array - Buffer with updated events
      */
-    public function batchUpdateStm($buffer) {
-        return array_map(array($this, 'updateStm'), $buffer);
+    public function batchUpdateStm(array $buffer): array
+    {
+        return array_map([$this, 'updateStm'], $buffer);
     }
 
     // Debug Functions
@@ -356,15 +404,18 @@ class Emitter extends Constants {
      *
      * @param string $emitter_type - Type of emitter we are logging for
      */
-    private function initDebug($emitter_type) {
+    private function initDebug(string $emitter_type)
+    {
         $this->debug_mode = true;
-        $id = uniqid("", true);
+        $id = uniqid('', true);
 
         // If the debug files were created successfully...
         if ($this->initDebugLogFiles($id, $emitter_type) === true) {
-            $debug_header = "Event Log File\nEmitter: ".$emitter_type."\nID: ".$id."\n\n";
+            $debug_header = "Event Log File\nEmitter: {$emitter_type}\nID: {$id}\n\n";
+
             return $this->writeToFile($this->debug_file, $debug_header);
         }
+
         return false;
     }
 
@@ -373,19 +424,23 @@ class Emitter extends Constants {
      *
      * @param string $id - Random id for the log file
      * @param string $type - Type of emitter we are logging for
+     *
      * @return bool - Whether or not debug file init was successful
      */
-    private function initDebugLogFiles($id, $type) {
-        $debug_dir = dirname(__DIR__)."/debug";
-        $this->path = $debug_dir."/".$type."-events-log-".$id.".log";
+    private function initDebugLogFiles(string $id, string $type): bool
+    {
+        $debug_dir = dirname(__DIR__) . '/debug';
+        $this->path = "{$debug_dir}/{$type}-events-log-{$id}.log";
 
         // Attempt to make the debug directory and open the log file
         if ($this->makeDir($debug_dir) === true) {
             $this->debug_file = $this->openFile($this->path);
+
             if ($this->debug_file !== false) {
                 return true;
             }
         }
+
         return false;
     }
 }
